@@ -5,7 +5,7 @@ import React from "react"
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getContactInfo, type ContactInfo } from "@/lib/firestore";
+import type { ContactInfo } from "@/lib/firestore";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { Loader2, Menu, X, ArrowRight } from "lucide-react";
@@ -49,9 +49,10 @@ export default function ContactPage() {
   useEffect(() => {
     async function fetchContactInfo() {
       try {
-        const data = await getContactInfo();
-        if (data) {
-          setContactInfo({ ...defaultContactInfo, ...data });
+        const res = await fetch("/api/v1/content/contact");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          setContactInfo({ ...defaultContactInfo, ...json.data });
         }
       } catch {
         // Silently use default contact info

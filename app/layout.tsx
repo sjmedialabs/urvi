@@ -20,7 +20,6 @@ export const metadata: Metadata = {
     description: 'Leading architectural and construction company offering premium apartments, villas, townhouses, and commercial properties.',
     type: 'website',
   },
-    generator: 'v0.app'
 }
 
 export const viewport = {

@@ -3,9 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getContactInfo, type ContactInfo } from "@/lib/firestore";
-import { doc, setDoc, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,8 +38,10 @@ export default function SettingsPage() {
 
   const loadContactInfo = async () => {
     try {
-      const data = await getContactInfo();
-      if (data) {
+      const res = await fetch("/api/v1/content/contact");
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.data) {
+        const data = json.data;
         setFormData({
           address: data.address || "123 Frontage Rd., Any City, 12345 Any State",
           phone: data.phone || "123-456-7890",
@@ -61,25 +60,31 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
+    if (!user?.getIdToken) return;
     setSaving(true);
     try {
-      const contactRef = doc(db, "settings", "contact");
-      await setDoc(contactRef, {
-        address: formData.address,
-        phone: formData.phone,
-        email: formData.email,
-        socialLinks: {
-          facebook: formData.facebook,
-          twitter: formData.twitter,
-          linkedin: formData.linkedin,
-          youtube: formData.youtube,
-        },
-        updatedAt: Timestamp.now(),
-      }, { merge: true });
+      const token = await user.getIdToken();
+      const res = await fetch("/api/v1/content/contact", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          address: formData.address,
+          phone: formData.phone,
+          email: formData.email,
+          socialLinks: {
+            facebook: formData.facebook,
+            twitter: formData.twitter,
+            linkedin: formData.linkedin,
+            youtube: formData.youtube,
+          },
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error ?? `Save failed (${res.status})`);
       alert("Settings saved successfully!");
     } catch (error) {
       console.error("Error saving settings:", error);
-      alert("Error saving settings. Please try again.");
+      alert(error instanceof Error ? error.message : "Error saving settings. Please try again.");
     } finally {
       setSaving(false);
     }

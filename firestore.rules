@@ -1,0 +1,84 @@
+// =============================================================================
+// DEPLOY THESE RULES or you will get "Missing or insufficient permissions"
+// Firebase Console → Firestore Database → Rules → paste this → Publish
+// Or: firebase deploy --only firestore
+// =============================================================================
+//
+// Why you see the error:
+// - Public pages (home, blog, gallery, etc.) and server code read Firestore with
+//   no user logged in (request.auth == null). If rules require auth, reads fail.
+// - These rules allow public READ on content collections and auth-only for writes
+//   and sensitive data (leads, form submissions).
+// =============================================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----- Public content: anyone can read (for marketing site). Only auth can write.
+    match /categories/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /projects/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /testimonials/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /articles/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /heroSlides/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /gallery/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /pages/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /cmsPages/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /cmsSections/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /formConfigs/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /propertyAmenities/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /propertyDetails/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /propertySections/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ----- Sensitive: only authenticated admin can read/write
+    match /leads/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /formSubmissions/{docId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

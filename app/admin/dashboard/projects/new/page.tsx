@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { addProject, getActiveCategories, type Category } from "@/lib/firestore";
+
+interface CategoryOption {
+  id: string;
+  name: string;
+  slug: string;
+}
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,19 +34,26 @@ export default function NewProjectPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
 
   useEffect(() => {
+    if (!user || typeof user.getIdToken !== "function") return;
     async function fetchCategories() {
       try {
-        const cats = await getActiveCategories();
-        setCategories(cats);
+        const token = await user.getIdToken();
+        const res = await fetch("/api/v1/categories", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setCategories(json.data ?? []);
+        }
       } catch (error) {
         console.error("Error fetching categories:", error);
       }
     }
     fetchCategories();
-  }, []);
+  }, [user]);
   
   const [formData, setFormData] = useState({
     // Basic Info
@@ -102,26 +114,36 @@ export default function NewProjectPage() {
       alert("Please fill in required fields: Title, Category, and Location");
       return;
     }
+    if (!user?.getIdToken) {
+      alert("You must be logged in to save.");
+      return;
+    }
 
     setSaving(true);
     try {
-      await addProject({
-        title: formData.title,
-        type: formData.type,
-        location: formData.location,
-        image: formData.image || formData.heroImage,
-        description: formData.description,
-        categoryId: formData.categoryId,
-        category: formData.category,
-        status: formData.status as 'ongoing' | 'upcoming' | 'completed',
-        price: formData.price,
-        featured: formData.featured,
+      const token = await user.getIdToken();
+      const res = await fetch("/api/v1/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: formData.title,
+          type: formData.type,
+          location: formData.location,
+          image: formData.image || formData.heroImage,
+          description: formData.description,
+          categoryId: formData.categoryId,
+          category: formData.category,
+          status: formData.status === "Under Construction" ? "ongoing" : formData.status === "Upcoming" ? "upcoming" : formData.status === "Completed" ? "completed" : "ongoing",
+          price: formData.price,
+          featured: formData.featured,
+        }),
       });
-      
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error ?? `Save failed (${res.status})`);
       router.push("/admin/dashboard/projects");
     } catch (error) {
       console.error("Error saving project:", error);
-      alert("Failed to save project. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to save project. Please try again.");
     } finally {
       setSaving(false);
     }

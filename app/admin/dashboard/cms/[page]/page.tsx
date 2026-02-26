@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
-import { getPageContent, updatePageContent, type PageContent } from "@/lib/firestore";
+import type { PageContent } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save, Plus, Trash2, AlertCircle } from "lucide-react";
 import { ImageUpload } from "@/components/admin/image-upload";
-import { isFirebaseConfigured } from "@/lib/firebase";
 
 const pageConfig: Record<string, { title: string; description: string }> = {
   apartments: { title: "Apartments Page", description: "Manage apartments listing page content" },
@@ -57,21 +56,25 @@ export default function CMSGenericPage() {
   useEffect(() => {
     async function fetchContent() {
       try {
-        const data = await getPageContent(pageName);
-        if (data) {
-          setContent(data);
+        const res = await fetch(`/api/v1/content/pages/${pageName}`);
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          const data = json.data;
+          setContent({
+            pageName: data.pageName ?? pageName,
+            title: data.title ?? "",
+            subtitle: data.subtitle ?? "",
+            content: data.content ?? "",
+            heroImage: data.heroImage ?? "",
+            sections: data.sections ?? [],
+          });
           setSections((data.sections as Section[]) || []);
+        } else {
+          setContent({ pageName: pageName, title: "", subtitle: "", content: "", heroImage: "", sections: [] });
+          setSections([]);
         }
       } catch {
-        // Firestore not configured yet - use default empty content
-        setContent({
-          pageName: pageName,
-          title: "",
-          subtitle: "",
-          content: "",
-          heroImage: "",
-          sections: [],
-        });
+        setContent({ pageName: pageName, title: "", subtitle: "", content: "", heroImage: "", sections: [] });
         setSections([]);
       } finally {
         setLoadingData(false);
@@ -84,22 +87,21 @@ export default function CMSGenericPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!isFirebaseConfigured) {
-      alert("Firebase is not configured. Please add your Firebase credentials to save content.");
-      return;
-    }
-    
+    if (!user?.getIdToken) return;
     setSaving(true);
     try {
-      await updatePageContent(pageName, {
-        ...content,
-        sections,
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/v1/content/pages/${pageName}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...content, sections }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error ?? `Save failed (${res.status})`);
       alert("Page content saved!");
     } catch (error) {
       console.error("Error saving content:", error);
-      alert("Error saving content. Firebase may not be properly configured.");
+      alert(error instanceof Error ? error.message : "Error saving content. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -131,18 +133,6 @@ export default function CMSGenericPage() {
         <h1 className="text-2xl font-bold text-[#1F2A54] capitalize">{config.title}</h1>
         <p className="text-muted-foreground">{config.description}</p>
       </div>
-
-      {!isFirebaseConfigured && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium text-yellow-800">Firebase Not Configured</p>
-            <p className="text-sm text-yellow-700 mt-1">
-              To save content, please configure your Firebase credentials in the environment variables.
-            </p>
-          </div>
-        </div>
-      )}
 
       {loadingData ? (
         <div className="flex items-center justify-center py-12">

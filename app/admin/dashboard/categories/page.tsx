@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import {
-  getCategories,
   addCategory,
   updateCategory,
   deleteCategory,
@@ -82,9 +81,19 @@ export default function CategoriesPage() {
   }, [user]);
 
   const loadCategories = async () => {
+    if (!user || typeof user.getIdToken !== "function") {
+      setLoading(false);
+      return;
+    }
     try {
-      const data = await getCategories();
-      setCategories(data);
+      const token = await user.getIdToken();
+      const res = await fetch("/api/v1/categories?all=true", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setCategories((json.data ?? []) as Category[]);
+      }
     } catch (error) {
       console.error("Error loading categories:", error);
     } finally {

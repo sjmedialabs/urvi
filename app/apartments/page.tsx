@@ -6,7 +6,7 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { getProjects, Project } from "@/lib/firestore";
+import { Project } from "@/lib/firestore";
 
 const filterTabs = [
   { id: "all", label: "All Projects" },
@@ -15,91 +15,23 @@ const filterTabs = [
   { id: "completed", label: "Completed Projects" },
 ];
 
-// Default projects for when Firestore is not configured
-const defaultProjects: Project[] = [
-  {
-    id: "1",
-    title: "Opulent Vista Residential Towers",
-    location: "Narsingi, Hyderabad",
-    category: "apartments",
-    status: "ongoing",
-    image: "/images/project-1.jpg",
-    price: "7.45 Cr",
-    description: "",
-    featured: true,
-  },
-  {
-    id: "2",
-    title: "Urban Nest Residential Homes",
-    location: "Kokapet, Hyderabad",
-    category: "apartments",
-    status: "upcoming",
-    image: "/images/project-2.jpg",
-    price: "5.25 Cr",
-    description: "",
-    featured: true,
-  },
-  {
-    id: "3",
-    title: "Green Haven Residential Enclave",
-    location: "Kondapur, Hyderabad",
-    category: "apartments",
-    status: "completed",
-    image: "/images/project-3.jpg",
-    price: "6.80 Cr",
-    description: "",
-    featured: false,
-  },
-  {
-    id: "4",
-    title: "Opulent Vista Residential Towers",
-    location: "Narsingi, Hyderabad",
-    category: "apartments",
-    status: "ongoing",
-    image: "/images/project-1.jpg",
-    price: "7.45 Cr",
-    description: "",
-    featured: false,
-  },
-  {
-    id: "5",
-    title: "Urban Nest Residential Homes",
-    location: "Kokapet, Hyderabad",
-    category: "apartments",
-    status: "upcoming",
-    image: "/images/project-2.jpg",
-    price: "5.25 Cr",
-    description: "",
-    featured: false,
-  },
-  {
-    id: "6",
-    title: "Green Haven Residential Enclave",
-    location: "Kondapur, Hyderabad",
-    category: "apartments",
-    status: "completed",
-    image: "/images/project-3.jpg",
-    price: "6.80 Cr",
-    description: "",
-    featured: false,
-  },
-];
-
 export default function ApartmentsPage() {
   const [activeFilter, setActiveFilter] = useState("all");
-  const [projects, setProjects] = useState<Project[]>(defaultProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const data = await getProjects();
-        const apartmentProjects = data.filter(p => p.category === "apartments");
-        if (apartmentProjects.length > 0) {
-          setProjects(apartmentProjects);
-        }
+        const res = await fetch("/api/v1/projects/public");
+        const json = await res.json().catch(() => ({}));
+        const list = Array.isArray(json?.data) ? json.data : [];
+        const apartmentProjects = list
+          .filter((p: { category?: string }) => p.category === "apartments")
+          .map((p: Record<string, unknown>) => ({ id: p.id, ...p } as Project));
+        setProjects(apartmentProjects);
       } catch {
-        // Use default projects if Firestore is not configured
+        setProjects([]);
       } finally {
         setLoading(false);
       }
@@ -156,9 +88,11 @@ export default function ApartmentsPage() {
             ))}
           </div>
 
-          {/* Projects Grid */}
+          {/* Projects Grid - from CMS only */}
           {loading ? (
             <div className="text-center py-12">Loading projects...</div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="text-center py-12 text-gray-600">No apartments projects in CMS yet.</div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredProjects.map((project) => (
@@ -169,7 +103,7 @@ export default function ApartmentsPage() {
                 >
                   <div className="relative h-[420px] rounded-[20px] overflow-hidden border border-gray-200 shadow-sm card-hover-lift">
                     <Image
-                      src={project.image || "/images/project-1.jpg"}
+                      src={project.image || "/placeholder.svg"}
                       alt={project.title}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-500"

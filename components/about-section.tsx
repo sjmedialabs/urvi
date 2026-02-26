@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useScrollAnimation } from "@/hooks/use-scroll-animation";
-import { getAboutContent, type AboutContent } from "@/lib/firestore";
+type AboutData = { title?: string; subtitle?: string; description?: string; image?: string; heroTitle?: string; tagline?: string; heroImage?: string };
 
 const propertyTypes = [
   { icon: "/images/icons/apartments.png", label: "Apartments" },
@@ -13,7 +13,7 @@ const propertyTypes = [
 ];
 
 export function AboutSection() {
-  const [aboutData, setAboutData] = useState<AboutContent | null>(null);
+  const [aboutData, setAboutData] = useState<AboutData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { ref: leftRef, isVisible: leftVisible } = useScrollAnimation<HTMLDivElement>();
   const { ref: rightRef, isVisible: rightVisible } = useScrollAnimation<HTMLDivElement>();
@@ -21,8 +21,9 @@ export function AboutSection() {
   useEffect(() => {
     async function fetchAbout() {
       try {
-        const data = await getAboutContent();
-        setAboutData(data);
+        const res = await fetch("/api/v1/content/about");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) setAboutData(json.data);
       } catch (error) {
         console.error("Error fetching about content:", error);
       } finally {
@@ -32,10 +33,10 @@ export function AboutSection() {
     fetchAbout();
   }, []);
 
-  const title = aboutData?.title || "About Urvi Constructions";
-  const subtitle = aboutData?.subtitle || "We Are The Leader In The\nArchitectural";
-  const description = aboutData?.description || "At Urvi Constructions, we're driven by a clear purpose -- to redefine how communities are built and experienced. Rooted in integrity, quality, and innovation, our journey is guided by a commitment to create spaces that inspire better living. Each project reflects our passion for thoughtful design, sustainable development, and enduring value.\n\nWe don't just construct buildings; we shape environments where people connect, grow, and thrive. For us, it's more than construction -- it's the art of building a better tomorrow.";
-  const aboutImage = aboutData?.image || "/images/about-building.jpg";
+  const title = aboutData?.title || aboutData?.heroTitle || "About Urvi Constructions";
+  const subtitle = aboutData?.subtitle || aboutData?.tagline || "We Are The Leader In The\nArchitectural";
+  const description = aboutData?.description || "At Urvi Constructions, we're driven by a clear purpose -- to redefine how communities are built and experienced. Rooted in integrity, quality, and innovation, our journey is guided by a commitment to create spaces that inspire better living.";
+  const aboutImage = aboutData?.image || aboutData?.heroImage || "/images/about-building.jpg";
 
   return (
     <section id="about" className="py-20 bg-white">

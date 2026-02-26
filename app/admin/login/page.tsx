@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [shakeError, setShakeError] = useState(false);
-  const { signIn, isPreview } = useAuth();
+  const { signIn } = useAuth();
   const router = useRouter();
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -104,15 +104,6 @@ export default function AdminLoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isPreview && (
-              <div className="flex items-start gap-2 p-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg" role="status">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
-                <span className="flex-1">
-                  Preview mode: Firebase cannot connect in v0 sandbox. Enter any credentials to access the dashboard.
-                </span>
-              </div>
-            )}
-
             {error && (
               <div
                 className={`flex items-start gap-2 p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg ${shakeError ? "animate-shake" : ""}`}

@@ -16,10 +16,7 @@ import { db, isFirebaseConfigured } from './firebase';
 
 // Helper to check if Firestore is available
 function getDb() {
-  if (!isFirebaseConfigured || !db) {
-    console.log("[v0] Firestore not configured, using empty defaults");
-    return null;
-  }
+  if (!isFirebaseConfigured || !db) return null;
   return db;
 }
 
@@ -125,7 +122,7 @@ export interface Lead {
   phone: string;
   message: string;
   source: string;
-  status: 'new' | 'contacted' | 'qualified' | 'converted' | 'rejected' | 'saved';
+  status: 'new' | 'contacted' | 'qualified' | 'converted' | 'rejected' | 'saved' | 'closed' | 'lost';
   notes?: string;
   propertyInterest?: string;
   createdAt?: Timestamp;

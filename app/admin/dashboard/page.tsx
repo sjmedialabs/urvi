@@ -103,8 +103,7 @@ export default function DashboardPage() {
         setRecentProjects(projects.slice(0, 5));
         setRecentArticles(articles.slice(0, 5));
       } catch (error) {
-        // Firestore permissions not configured yet - use empty defaults
-        console.log("[v0] Firestore not configured, using empty defaults:", error);
+        console.error("Dashboard fetch error:", error);
         setStats({
           projects: 0,
           testimonials: 0,

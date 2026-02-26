@@ -1,28 +1,45 @@
 import { NextResponse } from "next/server";
 import { addLead } from "@/lib/firestore";
+import { contactSubmissionSchema } from "@/lib/api/schemas";
+import { rateLimit } from "@/lib/api/rate-limit";
+import { sanitizeString } from "@/lib/api/sanitize";
+
+/** Rate limit: 10 submissions per IP per minute */
+const RATE_LIMIT = { windowMs: 60_000, maxRequests: 10 };
 
 export async function POST(request: Request) {
+  const rateLimited = rateLimit(request, "enquiry", RATE_LIMIT);
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await request.json();
-    const { name, mobile, email, projectType, newsletter } = body;
-
-    // Validate required fields
-    if (!name || !mobile || !email || !projectType) {
+    const parsed = contactSubmissionSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Validation failed", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
+    const { name, email, phone, message, source, projectType, newsletter } = parsed.data;
 
-    // Create lead entry
+    // Backward compatibility: require name and email; phone and projectType optional (contact form sends message)
+    const phoneVal = phone ?? "";
+    const notes = [
+      projectType && `Project Type: ${sanitizeString(projectType, 200)}`,
+      message && `Message: ${sanitizeString(message, 2000)}`,
+      newsletter && "Subscribed to newsletter",
+    ]
+      .filter(Boolean)
+      .join(" | ") || "—";
+
     const leadId = await addLead({
-      name,
-      email,
-      phone: mobile,
-      source: "Website Enquiry",
+      name: sanitizeString(name, 200),
+      email: sanitizeString(email, 320),
+      phone: sanitizeString(phoneVal, 50),
+      message: message ? sanitizeString(message, 5000) : "",
+      source: source ? sanitizeString(source, 100) : "Website Enquiry",
       status: "new",
-      notes: `Project Type: ${projectType}${newsletter ? " | Subscribed to newsletter" : ""}`,
-      createdAt: new Date().toISOString(),
+      notes,
     });
 
     return NextResponse.json({ success: true, leadId }, { status: 200 });

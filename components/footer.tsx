@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getContactInfo, type ContactInfo } from "@/lib/firestore";
+import type { ContactInfo } from "@/lib/firestore";
 
 const quickLinks = [
   { href: "/", label: "Home" },
@@ -36,8 +36,9 @@ export function Footer() {
   useEffect(() => {
     async function fetchContact() {
       try {
-        const data = await getContactInfo();
-        setContactInfo(data);
+        const res = await fetch("/api/v1/content/contact");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) setContactInfo(json.data);
       } catch (error) {
         console.error("Error fetching contact info:", error);
       }

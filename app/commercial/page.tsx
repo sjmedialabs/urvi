@@ -6,7 +6,7 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { getProjects, Project } from "@/lib/firestore";
+import { Project } from "@/lib/firestore";
 
 const filterTabs = [
   { id: "all", label: "All Projects" },
@@ -15,57 +15,23 @@ const filterTabs = [
   { id: "completed", label: "Completed Projects" },
 ];
 
-const defaultProjects: Project[] = [
-  {
-    id: "c1",
-    title: "Urvi Business Park",
-    location: "HITEC City, Hyderabad",
-    category: "commercial",
-    status: "ongoing",
-    image: "/images/project-3.jpg",
-    price: "25.00 Cr",
-    description: "",
-    featured: true,
-  },
-  {
-    id: "c2",
-    title: "Tech Tower Commercial Complex",
-    location: "Gachibowli, Hyderabad",
-    category: "commercial",
-    status: "upcoming",
-    image: "/images/project-1.jpg",
-    price: "32.00 Cr",
-    description: "",
-    featured: true,
-  },
-  {
-    id: "c3",
-    title: "Prime Plaza Offices",
-    location: "Financial District, Hyderabad",
-    category: "commercial",
-    status: "completed",
-    image: "/images/project-2.jpg",
-    price: "28.50 Cr",
-    description: "",
-    featured: false,
-  },
-];
-
 export default function CommercialPage() {
   const [activeFilter, setActiveFilter] = useState("all");
-  const [projects, setProjects] = useState<Project[]>(defaultProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const data = await getProjects();
-        const commercialProjects = data.filter(p => p.category === "commercial");
-        if (commercialProjects.length > 0) {
-          setProjects(commercialProjects);
-        }
+        const res = await fetch("/api/v1/projects/public");
+        const json = await res.json().catch(() => ({}));
+        const list = Array.isArray(json?.data) ? json.data : [];
+        const commercialProjects = list
+          .filter((p: { category?: string }) => p.category === "commercial")
+          .map((p: Record<string, unknown>) => ({ id: p.id, ...p } as Project));
+        setProjects(commercialProjects);
       } catch {
-        // Use default projects
+        setProjects([]);
       } finally {
         setLoading(false);
       }
@@ -121,9 +87,11 @@ export default function CommercialPage() {
             ))}
           </div>
 
-          {/* Projects Grid */}
+          {/* Projects Grid - from CMS only */}
           {loading ? (
             <div className="text-center py-12">Loading projects...</div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="text-center py-12 text-gray-600">No commercial projects in CMS yet.</div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredProjects.map((project) => (
@@ -134,7 +102,7 @@ export default function CommercialPage() {
                 >
                   <div className="relative h-[420px] rounded-[20px] overflow-hidden border border-gray-200 shadow-sm card-hover-lift">
                     <Image
-                      src={project.image || "/images/project-3.jpg"}
+                      src={project.image || "/placeholder.svg"}
                       alt={project.title}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-500"

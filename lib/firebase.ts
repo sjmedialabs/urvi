@@ -23,26 +23,17 @@ const isFirebaseConfigured = Boolean(
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
-// Preview mode: config exists but Firebase SDK fails to init (e.g. v0 sandbox)
-let isPreviewMode = false;
 
 if (isFirebaseConfigured) {
   try {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
-  } catch (e) {
-    // Firebase initialization failed - enable preview mode if config was present
+  } catch {
     app = null;
     auth = null;
     db = null;
-    isPreviewMode = true;
   }
 }
 
-// Also detect preview mode if config is present but auth is null after init
-if (isFirebaseConfigured && !auth) {
-  isPreviewMode = true;
-}
-
-export { app, auth, db, isFirebaseConfigured, isPreviewMode };
+export { app, auth, db, isFirebaseConfigured };

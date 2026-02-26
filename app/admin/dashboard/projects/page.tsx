@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getProjects, deleteProject, type Project } from "@/lib/firestore";
+import { getProjects, type Project } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -31,6 +31,7 @@ import {
   Loader2,
   MapPin,
   Eye,
+  Sprout,
 } from "lucide-react";
 
 export default function ProjectsPage() {
@@ -41,6 +42,8 @@ export default function ProjectsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [saving, setSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [cleaningDuplicates, setCleaningDuplicates] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -56,6 +59,17 @@ export default function ProjectsPage() {
 
   const loadProjects = async () => {
     try {
+      // Prefer API (Admin SDK) so list works even when client Firestore rules block read
+      if (user && typeof user.getIdToken === "function") {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/v1/projects", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const json = await res.json();
+          setProjects(json.data ?? []);
+          setLoading(false);
+          return;
+        }
+      }
       const data = await getProjects();
       setProjects(data);
     } catch {
@@ -66,17 +80,81 @@ export default function ProjectsPage() {
   };
 
   const handleDelete = async () => {
-    if (!deletingProject?.id) return;
+    if (!deletingProject?.id || !user) return;
     setSaving(true);
     try {
-      await deleteProject(deletingProject.id);
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/v1/projects/${deletingProject.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error ?? `Delete failed (${res.status})`);
+      }
       await loadProjects();
       setDeleteDialogOpen(false);
       setDeletingProject(null);
     } catch (error) {
       console.error("Error deleting project:", error);
+      alert(error instanceof Error ? error.message : "Unable to delete the project.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSeedProjects = async () => {
+    if (!user) return;
+    setSeeding(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/v1/seed/projects", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error(
+            "Seed failed: Unauthorized. Add Firebase Admin env vars to .env: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY"
+          );
+        }
+        throw new Error(data?.error || `Seed failed (${res.status})`);
+      }
+      await loadProjects();
+    } catch (error) {
+      console.error("Seed error:", error);
+      alert(error instanceof Error ? error.message : "Failed to seed projects");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleCleanDuplicates = async () => {
+    if (!user) return;
+    setCleaningDuplicates(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/v1/seed/clean-duplicate-projects", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || `Clean failed (${res.status})`);
+      }
+      const { deleted, kept, deletedTitles } = data?.data ?? {};
+      await loadProjects();
+      if (deleted > 0) {
+        alert(`Removed ${deleted} duplicate project(s). Kept ${kept}.\nDeleted: ${(deletedTitles ?? []).join(", ") || "—"}`);
+      } else {
+        alert("No duplicate projects found (same title).");
+      }
+    } catch (error) {
+      console.error("Clean duplicates error:", error);
+      alert(error instanceof Error ? error.message : "Failed to clean duplicates");
+    } finally {
+      setCleaningDuplicates(false);
     }
   };
 
@@ -94,24 +172,57 @@ export default function ProjectsPage() {
     <div className="p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl font-bold text-[#1F2A54]">All Projects</h1>
-        <Link href="/admin/dashboard/projects/new">
-          <Button className="bg-[#1F2A54] hover:bg-[#1F2A54]/90 text-white w-full sm:w-auto">
-            <Plus size={18} className="mr-2" />
-            Add Project
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSeedProjects}
+            disabled={seeding}
+            className="w-full sm:w-auto"
+          >
+            {seeding ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Sprout size={18} className="mr-2" />}
+            {seeding ? "Seeding..." : "Seed 5 projects"}
           </Button>
-        </Link>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCleanDuplicates}
+            disabled={cleaningDuplicates}
+            className="w-full sm:w-auto"
+          >
+            {cleaningDuplicates ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Trash2 size={18} className="mr-2" />}
+            {cleaningDuplicates ? "Cleaning..." : "Clean duplicates"}
+          </Button>
+          <Link href="/admin/dashboard/projects/new">
+            <Button className="bg-[#1F2A54] hover:bg-[#1F2A54]/90 text-white w-full sm:w-auto">
+              <Plus size={18} className="mr-2" />
+              Add Project
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {projects.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground mb-4">No projects yet. Add your first project!</p>
-            <Link href="/admin/dashboard/projects/new">
-              <Button className="bg-[#1F2A54] hover:bg-[#1F2A54]/90 text-white">
-                <Plus size={18} className="mr-2" />
-                Add Project
+            <p className="text-muted-foreground mb-4">No projects yet. Add your first project or seed sample data.</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSeedProjects}
+                disabled={seeding}
+              >
+                {seeding ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Sprout size={18} className="mr-2" />}
+                {seeding ? "Seeding..." : "Seed 5 projects"}
               </Button>
-            </Link>
+              <Link href="/admin/dashboard/projects/new">
+                <Button className="bg-[#1F2A54] hover:bg-[#1F2A54]/90 text-white">
+                  <Plus size={18} className="mr-2" />
+                  Add Project
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : (

@@ -14,8 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, Plus, Trash2, GripVertical } from "lucide-react";
 import { ImageUpload } from "@/components/admin/image-upload";
-import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 
 interface TeamMember {
   id: string;
@@ -81,13 +80,13 @@ export default function CMSAboutPage() {
   useEffect(() => {
     async function fetchContent() {
       try {
-        const docRef = doc(db, 'pages', 'about');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setContent({ ...defaultContent, ...docSnap.data() as AboutPageContent });
+        const res = await fetch("/api/v1/content/about");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          setContent({ ...defaultContent, ...json.data });
         }
-      } catch {
-        // Use default content if Firestore is not configured
+      } catch (err) {
+        console.error("Error fetching about content:", err);
       } finally {
         setLoadingData(false);
       }
@@ -99,17 +98,23 @@ export default function CMSAboutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.getIdToken) return;
     setSaving(true);
     try {
-      const docRef = doc(db, 'pages', 'about');
-      await setDoc(docRef, {
-        ...content,
-        updatedAt: Timestamp.now(),
-      }, { merge: true });
+      const token = await user.getIdToken();
+      const res = await fetch("/api/v1/content/about", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(content),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error ?? `Save failed (${res.status})`);
+      }
       alert("About page content saved!");
     } catch (error) {
       console.error("Error saving content:", error);
-      alert("Error saving content. Please try again.");
+      alert(error instanceof Error ? error.message : "Error saving content. Please try again.");
     } finally {
       setSaving(false);
     }

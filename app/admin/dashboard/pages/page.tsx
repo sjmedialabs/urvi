@@ -84,8 +84,7 @@ export default function PagesManagerPage() {
         const data = await getCMSPages();
         setPages(data || []);
       } catch (error) {
-        // Firebase not configured or permissions issue - show empty state
-        console.log("[v0] CMS Pages fetch error (Firebase may not be configured):", error);
+        console.error("CMS Pages fetch error:", error);
         setPages([]);
       } finally {
         setLoadingData(false);

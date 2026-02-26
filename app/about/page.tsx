@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 interface TeamMember {
   id: string;
@@ -61,14 +59,10 @@ export default function AboutPage() {
   useEffect(() => {
     async function fetchContent() {
       try {
-        if (!db) {
-          setIsLoading(false);
-          return;
-        }
-        const docRef = doc(db, 'pages', 'about');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setContent({ ...defaultContent, ...docSnap.data() as AboutPageContent });
+        const res = await fetch("/api/v1/content/about");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          setContent({ ...defaultContent, ...json.data });
         }
       } catch (error) {
         console.error("Error fetching about page content:", error);

@@ -5,15 +5,13 @@ import React from "react"
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getContactInfo, type ContactInfo } from "@/lib/firestore";
+import type { ContactInfo } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save } from "lucide-react";
-import { doc, setDoc, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function CMSContactPage() {
   const { user, loading } = useAuth();
@@ -42,9 +40,10 @@ export default function CMSContactPage() {
   useEffect(() => {
     async function fetchContent() {
       try {
-        const data = await getContactInfo();
-        if (data) {
-          setContent(data);
+        const res = await fetch("/api/v1/content/contact");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          setContent((prev) => ({ ...prev, ...json.data }));
         }
       } catch (error) {
         console.error("Error fetching contact info:", error);
@@ -59,17 +58,21 @@ export default function CMSContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.getIdToken) return;
     setSaving(true);
     try {
-      const contactRef = doc(db, 'settings', 'contact');
-      await setDoc(contactRef, {
-        ...content,
-        updatedAt: Timestamp.now(),
-      }, { merge: true });
+      const token = await user.getIdToken();
+      const res = await fetch("/api/v1/content/contact", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(content),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error ?? `Save failed (${res.status})`);
       alert("Contact information saved!");
     } catch (error) {
       console.error("Error saving content:", error);
-      alert("Error saving content. Please try again.");
+      alert(error instanceof Error ? error.message : "Error saving content. Please try again.");
     } finally {
       setSaving(false);
     }

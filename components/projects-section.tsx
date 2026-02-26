@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { MapPin } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/use-scroll-animation";
-import { getProjects, type Project } from "@/lib/firestore";
 
 interface ProjectDisplay {
   id: string;
@@ -26,13 +25,15 @@ export function ProjectsSection() {
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const data = await getProjects();
-        const mapped: ProjectDisplay[] = data.map((p: Project) => ({
+        const res = await fetch("/api/v1/projects/public");
+        const json = await res.json().catch(() => ({}));
+        const list = Array.isArray(json?.data) ? json.data : [];
+        const mapped: ProjectDisplay[] = list.map((p: { id?: string; title?: string; type?: string; location?: string; image?: string }) => ({
           id: p.id || String(Math.random()),
-          title: p.title,
-          subtitle: p.type,
-          location: p.location,
-          image: p.image,
+          title: p.title ?? "",
+          subtitle: p.type ?? "",
+          location: p.location ?? "",
+          image: p.image ?? "",
         }));
         setProjects(mapped);
       } catch (error) {

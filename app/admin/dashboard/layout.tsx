@@ -28,7 +28,12 @@ import {
   Tags,
 } from "lucide-react";
 import Image from "next/image";
-import { getActiveCategories, type Category } from "@/lib/firestore";
+
+interface SidebarCategory {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 interface MenuItem {
   icon: React.ElementType;
@@ -37,7 +42,7 @@ interface MenuItem {
   children?: { label: string; href: string }[];
 }
 
-function buildMenuItems(categories: Category[]): MenuItem[] {
+function buildMenuItems(categories: SidebarCategory[]): MenuItem[] {
   const pageChildren = [
     { label: "Home", href: "/admin/dashboard/cms/home" },
     { label: "About", href: "/admin/dashboard/cms/about" },
@@ -69,24 +74,32 @@ export default function AdminDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, signOut, isPreview } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(["Pages"]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<SidebarCategory[]>([]);
 
+  // Fetch categories via API (uses Admin SDK server-side) to avoid Firestore client permission errors
   useEffect(() => {
+    if (!user || typeof user.getIdToken !== "function") return;
     async function fetchCategories() {
       try {
-        const cats = await getActiveCategories();
-        setCategories(cats);
+        const token = await user.getIdToken();
+        const res = await fetch("/api/v1/categories", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setCategories(json.data ?? []);
+        }
       } catch (error) {
         console.error("Error fetching categories for sidebar:", error);
       }
     }
     fetchCategories();
-  }, []);
+  }, [user]);
 
   const menuItems = buildMenuItems(categories);
 

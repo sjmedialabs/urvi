@@ -14,7 +14,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, Plus, Trash2, GripVertical } from "lucide-react";
 import { ImageUpload } from "@/components/admin/image-upload";
-import { useAuth } from "@/lib/auth-context";
 
 interface TeamMember {
   id: string;

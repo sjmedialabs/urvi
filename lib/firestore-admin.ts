@@ -247,6 +247,19 @@ export interface ProjectPayload {
   status?: "ongoing" | "upcoming" | "completed";
   price?: string;
   featured?: boolean;
+  slug?: string;
+}
+
+/** Generate URL-safe slug from title (and optional suffix for uniqueness). */
+export function slugify(title: string, suffix?: string): string {
+  const base = title
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "project";
+  return suffix ? `${base}-${suffix}` : base;
 }
 
 export async function adminAddProject(project: ProjectPayload): Promise<string> {
@@ -254,9 +267,12 @@ export async function adminAddProject(project: ProjectPayload): Promise<string> 
   if (!db) throw new Error("Firestore admin not configured");
   const ref = await db.collection("projects").add({
     ...project,
+    slug: project.slug || slugify(project.title),
     createdAt: new Date(),
     updatedAt: new Date(),
   });
+  const slug = project.slug || slugify(project.title) + "-" + ref.id.slice(0, 8);
+  await ref.update({ slug, updatedAt: new Date() });
   return ref.id;
 }
 
@@ -270,7 +286,7 @@ export async function adminGetProjects(): Promise<ProjectItem[]> {
   if (!db) return [];
   const snapshot = await db.collection("projects").orderBy("createdAt", "desc").get();
   return snapshot.docs.map((d) => {
-    const data = d.data();
+    const data = d.data() as Record<string, unknown> | undefined;
     return { id: d.id, ...data } as ProjectItem;
   });
 }
@@ -281,13 +297,36 @@ export async function adminDeleteProject(id: string): Promise<void> {
   await db.collection("projects").doc(id).delete();
 }
 
-/** Get one project by id (for public API). */
+/** Get one project by id (for public API). Backfills slug if missing (so old projects get readable URLs). */
 export async function adminGetProjectById(id: string): Promise<ProjectItem | null> {
   const db = getAdminDb();
   if (!db) return null;
-  const snap = await db.collection("projects").doc(id).get();
+  const ref = db.collection("projects").doc(id);
+  const snap = await ref.get();
   if (!snap.exists) return null;
-  return { id: snap.id, ...snap.data() } as ProjectItem;
+  const data = snap.data() as Record<string, unknown> | undefined;
+  const item = { id: snap.id, ...data } as ProjectItem;
+  if (!item.slug && item.title) {
+    const backfillSlug = slugify(item.title) + "-" + id.slice(0, 8);
+    try {
+      await ref.update({ slug: backfillSlug, updatedAt: new Date() });
+      item.slug = backfillSlug;
+    } catch {
+      item.slug = backfillSlug;
+    }
+  }
+  return item;
+}
+
+/** Get one project by slug (for public API). */
+export async function adminGetProjectBySlug(slug: string): Promise<ProjectItem | null> {
+  const db = getAdminDb();
+  if (!db) return null;
+  const snapshot = await db.collection("projects").where("slug", "==", slug).limit(1).get();
+  if (snapshot.empty) return null;
+  const d = snapshot.docs[0];
+  const data = d.data() as Record<string, unknown> | undefined;
+  return { id: d.id, ...data } as ProjectItem;
 }
 
 /** Serialize Firestore timestamp for JSON. */
@@ -360,4 +399,34 @@ export async function adminSetDocument(
     { ...data, updatedAt: new Date() },
     { merge: true }
   );
+}
+
+/** Get all testimonials for public API (e.g. home page). */
+export async function adminGetTestimonials(): Promise<Record<string, unknown>[]> {
+  const db = getAdminDb();
+  if (!db) return [];
+  const snapshot = await db.collection("testimonials").orderBy("createdAt", "desc").get();
+  return snapshot.docs.map((d) => {
+    const data = d.data() as Record<string, unknown>;
+    const out = { id: d.id, ...data };
+    if (data?.createdAt) out.createdAt = serializeTimestamp(data.createdAt);
+    if (data?.updatedAt) out.updatedAt = serializeTimestamp(data.updatedAt);
+    return out;
+  });
+}
+
+/** Get all articles for public API (e.g. home recent news). */
+export async function adminGetArticles(limit?: number): Promise<Record<string, unknown>[]> {
+  const db = getAdminDb();
+  if (!db) return [];
+  let q = db.collection("articles").orderBy("createdAt", "desc");
+  if (limit != null && limit > 0) q = q.limit(limit) as ReturnType<typeof q.limit>;
+  const snapshot = await q.get();
+  return snapshot.docs.map((d) => {
+    const data = d.data() as Record<string, unknown>;
+    const out = { id: d.id, ...data };
+    if (data?.createdAt) out.createdAt = serializeTimestamp(data.createdAt);
+    if (data?.updatedAt) out.updatedAt = serializeTimestamp(data.updatedAt);
+    return out;
+  });
 }

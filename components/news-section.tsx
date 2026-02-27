@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/use-scroll-animation";
-import { getArticles, type Article } from "@/lib/firestore";
 
 interface ArticleDisplay {
   id: string;
@@ -13,6 +12,15 @@ interface ArticleDisplay {
   date: string;
   title: string;
   image: string;
+}
+
+function formatDate(val: unknown): string {
+  if (typeof val === "string") return val;
+  if (val instanceof Date) return val.toISOString().slice(0, 10);
+  if (val && typeof val === "object" && "toDate" in val && typeof (val as { toDate: () => Date }).toDate === "function") {
+    return (val as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
+  }
+  return "";
 }
 
 export function NewsSection() {
@@ -24,13 +32,15 @@ export function NewsSection() {
   useEffect(() => {
     async function fetchArticles() {
       try {
-        const data = await getArticles();
-        const mapped: ArticleDisplay[] = data.map((a: Article) => ({
-          id: a.id || String(Math.random()),
-          category: a.category,
-          date: a.date,
-          title: a.title,
-          image: a.image,
+        const res = await fetch("/api/v1/articles/public?limit=8");
+        const json = await res.json().catch(() => ({}));
+        const list = Array.isArray(json?.data) ? json.data : [];
+        const mapped: ArticleDisplay[] = list.map((a: Record<string, unknown>) => ({
+          id: String(a?.id ?? Math.random()),
+          category: String(a?.category ?? ""),
+          date: formatDate(a?.date ?? a?.createdAt ?? ""),
+          title: String(a?.title ?? ""),
+          image: String(a?.image ?? ""),
         }));
         setArticles(mapped);
       } catch (error) {

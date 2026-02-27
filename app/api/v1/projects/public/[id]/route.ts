@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { apiError, apiInternalError } from "@/lib/api/errors";
 import {
   adminGetProjectById,
+  adminGetProjectBySlug,
   adminGetPropertyDetails,
   adminGetPropertyAmenities,
   type ProjectItem,
@@ -30,19 +31,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    if (!id) return apiError("BAD_REQUEST", undefined, "Project id required");
+    const { id: idOrSlug } = await params;
+    if (!idOrSlug) return apiError("BAD_REQUEST", undefined, "Project id or slug required");
 
-    const [project, propertyDetails, propertyAmenities] = await Promise.all([
-      adminGetProjectById(id),
-      adminGetPropertyDetails(id),
-      adminGetPropertyAmenities(id),
-    ]);
+    let project: ProjectItem | null = await adminGetProjectById(idOrSlug);
+    if (!project) project = await adminGetProjectBySlug(idOrSlug);
 
     if (!project) {
-      console.warn("[API] Project not found:", id);
+      console.warn("[API] Project not found (id or slug):", idOrSlug);
       return apiError("NOT_FOUND", undefined, "Project not found");
     }
+
+    const projectId = project.id;
+    const [propertyDetails, propertyAmenities] = await Promise.all([
+      adminGetPropertyDetails(projectId),
+      adminGetPropertyAmenities(projectId),
+    ]);
 
     return NextResponse.json({
       data: {

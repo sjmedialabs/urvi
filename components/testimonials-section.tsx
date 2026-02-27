@@ -5,8 +5,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/use-scroll-animation";
-import { getTestimonials, type Testimonial } from "@/lib/firestore";
-
 interface TestimonialDisplay {
   id: string;
   name: string;
@@ -26,13 +24,15 @@ export function TestimonialsSection() {
   useEffect(() => {
     async function fetchTestimonials() {
       try {
-        const data = await getTestimonials();
-        const mapped: TestimonialDisplay[] = data.map((t: Testimonial) => ({
-          id: t.id || String(Math.random()),
-          name: t.name,
-          role: t.role,
-          image: t.image,
-          text: t.content,
+        const res = await fetch("/api/v1/testimonials/public");
+        const json = await res.json().catch(() => ({}));
+        const list = Array.isArray(json?.data) ? json.data : [];
+        const mapped: TestimonialDisplay[] = list.map((t: Record<string, unknown>) => ({
+          id: String(t?.id ?? Math.random()),
+          name: String(t?.name ?? ""),
+          role: String(t?.role ?? ""),
+          image: String(t?.image ?? ""),
+          text: String(t?.content ?? ""),
         }));
         setTestimonials(mapped);
       } catch (error) {

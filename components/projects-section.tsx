@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/use-scroll-animation";
 
 interface ProjectDisplay {
   id: string;
+  slug: string;
   title: string;
   subtitle: string;
   location: string;
@@ -28,12 +30,13 @@ export function ProjectsSection() {
         const res = await fetch("/api/v1/projects/public");
         const json = await res.json().catch(() => ({}));
         const list = Array.isArray(json?.data) ? json.data : [];
-        const mapped: ProjectDisplay[] = list.map((p: { id?: string; title?: string; type?: string; location?: string; image?: string }) => ({
-          id: p.id || String(Math.random()),
-          title: p.title ?? "",
-          subtitle: p.type ?? "",
-          location: p.location ?? "",
-          image: p.image ?? "",
+        const mapped: ProjectDisplay[] = list.map((p: Record<string, unknown>) => ({
+          id: String(p?.id ?? Math.random()),
+          slug: String(p?.slug ?? p?.id ?? ""),
+          title: String(p?.title ?? ""),
+          subtitle: String(p?.type ?? ""),
+          location: String(p?.location ?? ""),
+          image: String(p?.image ?? ""),
         }));
         setProjects(mapped);
       } catch (error) {
@@ -159,9 +162,10 @@ export function ProjectsSection() {
                   }}
                 >
                   {projects.map((project) => (
-                    <div
+                    <Link
                       key={project.id}
-                      className="flex-shrink-0 w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
+                      href={`/property/${project.slug || project.id}`}
+                      className="flex-shrink-0 w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] block"
                     >
                       <div className="group relative rounded-2xl overflow-hidden aspect-[3/4] cursor-pointer card-hover-lift">
                         {/* Image */}
@@ -186,7 +190,7 @@ export function ProjectsSection() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>

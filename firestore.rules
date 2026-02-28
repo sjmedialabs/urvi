@@ -4,25 +4,28 @@
 // Or: firebase deploy --only firestore
 // =============================================================================
 //
-// Why you see the error:
-// - Public pages (home, blog, gallery, etc.) and server code read Firestore with
-//   no user logged in (request.auth == null). If rules require auth, reads fail.
-// - These rules allow public READ on content collections and auth-only for writes
-//   and sensitive data (leads, form submissions).
+// NOTE: Admin dashboard saves go through your Next.js API (Firebase Admin SDK),
+// which bypasses these rules. These rules apply to client-side Firestore access.
+// For CMS to persist, ensure your API uses Admin SDK and env vars are set.
+//
+// For debugging only (INSECURE): set DEBUG_ALLOW_ALL = true to allow all read/write.
+// Revert to false before deploying to production.
 // =============================================================================
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Set to true only for local debugging; never in production
+    let DEBUG_ALLOW_ALL = false;
 
-    // ----- Public content: anyone can read (for marketing site). Only auth can write.
+    // ----- Public content: anyone can read (for marketing site). Auth or debug write.
     match /categories/{docId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null || DEBUG_ALLOW_ALL;
     }
     match /projects/{docId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null || DEBUG_ALLOW_ALL;
     }
     match /testimonials/{docId} {
       allow read: if true;
@@ -62,11 +65,11 @@ service cloud.firestore {
     }
     match /propertyAmenities/{docId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null || DEBUG_ALLOW_ALL;
     }
     match /propertyDetails/{docId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null || DEBUG_ALLOW_ALL;
     }
     match /propertySections/{docId} {
       allow read: if true;

@@ -43,19 +43,29 @@ export async function GET(
     }
 
     const projectId = project.id;
-    const [propertyDetails, propertyAmenities] = await Promise.all([
-      adminGetPropertyDetails(projectId),
-      adminGetPropertyAmenities(projectId),
-    ]);
+    let propertyDetails: Record<string, unknown> | null = null;
+    let propertyAmenities: Record<string, unknown>[] = [];
+    try {
+      const [details, amenities] = await Promise.all([
+        adminGetPropertyDetails(projectId),
+        adminGetPropertyAmenities(projectId),
+      ]);
+      propertyDetails = details;
+      propertyAmenities = amenities ?? [];
+    } catch (subErr) {
+      console.warn("[API] Property details/amenities fetch failed for", projectId, subErr);
+    }
 
+    const payload = serializeProject(project);
     return NextResponse.json({
       data: {
-        project: serializeProject(project),
+        project: payload,
         propertyDetails,
         propertyAmenities,
       },
     });
   } catch (err) {
+    console.error("[API] GET /api/v1/projects/public/[id] error:", err);
     return apiInternalError(err);
   }
 }

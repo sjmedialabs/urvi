@@ -31,9 +31,12 @@ let adminDb: Firestore | null = null;
 
 function getAdminDb(): Firestore | null {
   if (adminDb) return adminDb;
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const rawKey = process.env.FIREBASE_PRIVATE_KEY;
+  const privateKey = rawKey
+    ? rawKey.replace(/\\n/g, "\n").replace(/^["']|["']$/g, "").trim()
+    : undefined;
   if (!projectId || !clientEmail || !privateKey) return null;
   try {
     const admin = require("firebase-admin");
@@ -41,10 +44,18 @@ function getAdminDb(): Firestore | null {
       credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
     });
     adminDb = getFirestore(app);
+    console.info("[firestore-admin] Initialized successfully for project:", projectId);
     return adminDb;
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[firestore-admin] Failed to initialize:", message);
     return null;
   }
+}
+
+/** Whether Firebase Admin is configured (env vars set and init succeeded). Use in API routes to return 503 when not configured. */
+export function isAdminConfigured(): boolean {
+  return getAdminDb() != null;
 }
 
 export interface GetLeadsPaginatedParams {
@@ -109,33 +120,38 @@ export async function getLeadsPaginated(params: GetLeadsPaginatedParams): Promis
 }
 
 /**
- * Get active categories (for admin sidebar). Uses Admin SDK so it works regardless of client Firestore rules.
+ * Get active categories (for admin sidebar). Uses Admin SDK.
+ * Fetches all and filters/sorts in memory to avoid requiring a composite Firestore index.
  */
 export async function adminGetActiveCategories(): Promise<CategoryItem[]> {
   const db = getAdminDb();
   if (!db) return [];
-  const snapshot = await db
-    .collection("categories")
-    .where("isActive", "==", true)
-    .orderBy("order", "asc")
-    .get();
-  return snapshot.docs.map((d) => {
-    const data = d.data();
-    return { id: d.id, ...data } as CategoryItem;
-  });
+  const snapshot = await db.collection("categories").get();
+  const items = snapshot.docs
+    .map((d) => {
+      const data = d.data();
+      return { id: d.id, ...data } as CategoryItem;
+    })
+    .filter((c) => c.isActive === true)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return items;
 }
 
 /**
  * Get all categories (for admin categories page). Uses Admin SDK.
+ * Fetches all and sorts in memory to avoid index issues.
  */
 export async function adminGetAllCategories(): Promise<CategoryItem[]> {
   const db = getAdminDb();
   if (!db) return [];
-  const snapshot = await db.collection("categories").orderBy("order", "asc").get();
-  return snapshot.docs.map((d) => {
-    const data = d.data();
-    return { id: d.id, ...data } as CategoryItem;
-  });
+  const snapshot = await db.collection("categories").get();
+  const items = snapshot.docs
+    .map((d) => {
+      const data = d.data();
+      return { id: d.id, ...data } as CategoryItem;
+    })
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return items;
 }
 
 /**
@@ -265,15 +281,23 @@ export function slugify(title: string, suffix?: string): string {
 export async function adminAddProject(project: ProjectPayload): Promise<string> {
   const db = getAdminDb();
   if (!db) throw new Error("Firestore admin not configured");
-  const ref = await db.collection("projects").add({
-    ...project,
-    slug: project.slug || slugify(project.title),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-  const slug = project.slug || slugify(project.title) + "-" + ref.id.slice(0, 8);
-  await ref.update({ slug, updatedAt: new Date() });
-  return ref.id;
+  const collectionName = "projects";
+  try {
+    const ref = await db.collection(collectionName).add({
+      ...project,
+      slug: project.slug || slugify(project.title),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const slug = project.slug || slugify(project.title) + "-" + ref.id.slice(0, 8);
+    await ref.update({ slug, updatedAt: new Date() });
+    console.info("[firestore-admin] Wrote document", collectionName, ref.id);
+    return ref.id;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[firestore-admin] adminAddProject failed:", msg);
+    throw err;
+  }
 }
 
 /** Project with id for API response */
@@ -285,10 +309,45 @@ export async function adminGetProjects(): Promise<ProjectItem[]> {
   const db = getAdminDb();
   if (!db) return [];
   const snapshot = await db.collection("projects").orderBy("createdAt", "desc").get();
-  return snapshot.docs.map((d) => {
+  const results: ProjectItem[] = [];
+  for (const d of snapshot.docs) {
     const data = d.data() as Record<string, unknown> | undefined;
-    return { id: d.id, ...data } as ProjectItem;
-  });
+    const item = { id: d.id, ...data } as ProjectItem;
+    if (!item.slug && item.title) {
+      const backfillSlug = slugify(item.title) + "-" + d.id.slice(0, 8);
+      try {
+        await d.ref.update({ slug: backfillSlug, updatedAt: new Date() });
+        item.slug = backfillSlug;
+      } catch {
+        item.slug = backfillSlug;
+      }
+    }
+    results.push(item);
+  }
+  return results;
+}
+
+/** Update an existing project by id. Merges payload; updates slug from title if title changed. Strips undefined so Firestore accepts the update. */
+export async function adminUpdateProject(id: string, payload: Partial<ProjectPayload>): Promise<void> {
+  const db = getAdminDb();
+  if (!db) throw new Error("Firestore admin not configured");
+  const collectionName = "projects";
+  const ref = db.collection(collectionName).doc(id);
+  try {
+    const snap = await ref.get();
+    if (!snap.exists) throw new Error("Project not found: " + collectionName + "/" + id);
+    const data = { ...payload, updatedAt: new Date() } as Record<string, unknown>;
+    if (payload.title != null) {
+      data.slug = slugify(payload.title) + "-" + id.slice(0, 8);
+    }
+    const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+    await ref.update(clean);
+    console.info("[firestore-admin] Updated document", collectionName, id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[firestore-admin] adminUpdateProject failed for", collectionName + "/" + id + ":", msg);
+    throw err;
+  }
 }
 
 export async function adminDeleteProject(id: string): Promise<void> {
@@ -353,22 +412,27 @@ export async function adminGetPropertyDetails(projectId: string): Promise<Record
   return out;
 }
 
-/** Get property amenities by propertyId (for public API). */
+/** Get property amenities by propertyId (for public API). Uses where-only query to avoid composite index; sorts by order in memory. */
 export async function adminGetPropertyAmenities(propertyId: string): Promise<Record<string, unknown>[]> {
   const db = getAdminDb();
   if (!db) return [];
-  const snapshot = await db
-    .collection("propertyAmenities")
-    .where("propertyId", "==", propertyId)
-    .orderBy("order", "asc")
-    .get();
-  return snapshot.docs.map((d) => {
-    const data = d.data() as Record<string, unknown>;
-    const out = { id: d.id, ...data };
-    if (data.createdAt) out.createdAt = serializeTimestamp(data.createdAt);
-    if (data.updatedAt) out.updatedAt = serializeTimestamp(data.updatedAt);
-    return out;
-  });
+  try {
+    const snapshot = await db
+      .collection("propertyAmenities")
+      .where("propertyId", "==", propertyId)
+      .get();
+    const items = snapshot.docs.map((d) => {
+      const data = d.data() as Record<string, unknown>;
+      const out = { id: d.id, ...data };
+      if (data.createdAt) out.createdAt = serializeTimestamp(data.createdAt);
+      if (data.updatedAt) out.updatedAt = serializeTimestamp(data.updatedAt);
+      return out;
+    });
+    items.sort((a, b) => (Number(a.order) ?? 0) - (Number(b.order) ?? 0));
+    return items;
+  } catch {
+    return [];
+  }
 }
 
 /** Get a document by collection and doc id (for content APIs). */
@@ -389,16 +453,23 @@ export async function adminGetDocument(
 
 /** Set (merge) a document (for CMS save APIs). */
 export async function adminSetDocument(
-  collection: string,
+  collectionName: string,
   docId: string,
   data: Record<string, unknown>
 ): Promise<void> {
   const db = getAdminDb();
   if (!db) throw new Error("Firestore admin not configured");
-  await db.collection(collection).doc(docId).set(
-    { ...data, updatedAt: new Date() },
-    { merge: true }
-  );
+  try {
+    await db.collection(collectionName).doc(docId).set(
+      { ...data, updatedAt: new Date() },
+      { merge: true }
+    );
+    console.info("[firestore-admin] Set document", collectionName, docId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[firestore-admin] adminSetDocument failed for", collectionName + "/" + docId + ":", msg);
+    throw err;
+  }
 }
 
 /** Get all testimonials for public API (e.g. home page). */

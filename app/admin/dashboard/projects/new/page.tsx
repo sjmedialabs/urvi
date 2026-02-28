@@ -43,10 +43,14 @@ export default function NewProjectPage() {
         const token = await user.getIdToken();
         const res = await fetch("/api/v1/categories", {
           headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
         });
         if (res.ok) {
           const json = await res.json();
           setCategories(json.data ?? []);
+        } else {
+          const json = await res.json().catch(() => ({}));
+          console.error("Categories API error:", res.status, json?.error ?? json);
         }
       } catch (error) {
         console.error("Error fetching categories:", error);
@@ -66,7 +70,7 @@ export default function NewProjectPage() {
     description: "",
     featured: false,
     // Hero Section
-    tagline: "YOUR HOME TO LIVE YOUR LIFE AT ITS BEST",
+    tagline: "",
     heroImage: "",
     // Pricing
     price: "",
@@ -125,6 +129,7 @@ export default function NewProjectPage() {
       const res = await fetch("/api/v1/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        cache: "no-store",
         body: JSON.stringify({
           title: formData.title,
           type: formData.type,
@@ -140,6 +145,7 @@ export default function NewProjectPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error ?? `Save failed (${res.status})`);
+      alert("Project created successfully.");
       router.push("/admin/dashboard/projects");
     } catch (error) {
       console.error("Error saving project:", error);
@@ -263,7 +269,7 @@ export default function NewProjectPage() {
                 id="tagline"
                 value={formData.tagline}
                 onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                placeholder="YOUR HOME TO LIVE YOUR LIFE AT ITS BEST"
+                placeholder="Hero tagline"
               />
             </div>
             <div className="space-y-2">

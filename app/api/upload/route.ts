@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 
@@ -24,15 +23,6 @@ export async function POST(request: NextRequest) {
 
     const timestamp = Date.now();
     const ext = (file.name.split(".").pop() || "bin").replace(/[^a-z0-9]/gi, "");
-    const filename = `${folder}/${timestamp}-${Math.random().toString(36).substring(7)}.${ext}`;
-
-    // Prefer Vercel Blob when token is set
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      const blob = await put(filename, file, { access: "public" });
-      return NextResponse.json({ url: blob.url, filename, size: file.size, type: file.type });
-    }
-
-    // Local fallback: save to public/uploads (for dev without BLOB_READ_WRITE_TOKEN)
     const baseName = `${timestamp}-${Math.random().toString(36).substring(7)}.${ext}`;
     const dir = path.join(process.cwd(), "public", folder);
     await mkdir(dir, { recursive: true });

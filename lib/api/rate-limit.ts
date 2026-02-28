@@ -1,6 +1,6 @@
 /**
  * In-memory rate limiter for API routes (e.g. contact form).
- * For production at scale, consider Redis or Vercel KV.
+ * For production at scale, consider Redis or another key-value store.
  */
 
 const store = new Map<string, { count: number; resetAt: number }>();

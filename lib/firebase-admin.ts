@@ -11,9 +11,12 @@ let adminApp: any = null;
 
 function getAdminApp() {
   if (adminApp) return adminApp;
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const rawKey = process.env.FIREBASE_PRIVATE_KEY;
+  const privateKey = rawKey
+    ? rawKey.replace(/\\n/g, "\n").replace(/^["']|["']$/g, "").trim()
+    : undefined;
   if (!projectId || !clientEmail || !privateKey) return null;
   try {
     const admin = require("firebase-admin");
@@ -22,7 +25,8 @@ function getAdminApp() {
       credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
     });
     return adminApp;
-  } catch {
+  } catch (err) {
+    console.error("[firebase-admin] Failed to initialize Firebase Admin (auth):", err);
     return null;
   }
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Play, MapPin, Phone, ChevronRight, Plus, Minus, X, ChevronLeft, Loader2 } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -22,8 +22,12 @@ const navTabs = [
   { id: "brochure", label: "brochure" },
 ];
 
+/** Minimal 1x1 transparent data URI – used when no CMS image (avoids static placeholder files). */
+const NO_IMAGE_SRC = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E";
+
 export default function PropertyDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.id as string;
   
   const [loading, setLoading] = useState(true);
@@ -112,8 +116,10 @@ export default function PropertyDetailPage() {
     }
   };
 
-  // Gallery images from CMS only (empty until added in admin)
-  const allGalleryImages: string[] = [];
+  // Gallery images from CMS (propertyDetails.galleryImages)
+  const allGalleryImages: string[] = Array.isArray((propertyDetails as Record<string, unknown>)?.galleryImages)
+    ? ((propertyDetails as Record<string, unknown>).galleryImages as string[])
+    : [];
 
   const openMainGallery = (index: number) => {
     setMainGalleryIndex(index);
@@ -128,8 +134,15 @@ export default function PropertyDetailPage() {
     setMainGalleryIndex((prev) => (prev - 1 + allGalleryImages.length) % allGalleryImages.length);
   };
 
-  // Floor plan images from CMS only (empty until added in admin)
-  const floorPlanImages: { src: string; alt: string }[] = [];
+  // Floor plan images from CMS (propertyDetails.floorPlans)
+  const floorPlanImages: { src: string; alt: string }[] = (() => {
+    const raw = (propertyDetails as Record<string, unknown>)?.floorPlans;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((p: Record<string, unknown>) => ({
+      src: String(p?.image ?? p?.src ?? ""),
+      alt: String(p?.name ?? p?.alt ?? "Floor plan"),
+    }));
+  })();
 
   const nextFloorPlan = () => {
     setFloorPlanSlide((prev) => (prev + 1) % Math.max(1, floorPlanImages.length - 2));
@@ -148,13 +161,9 @@ export default function PropertyDetailPage() {
 
   useEffect(() => {
     async function loadData() {
-      if (!projectId) {
-        setLoading(false);
-        setNotFound(true);
-        return;
-      }
+      if (!projectId) return;
       try {
-        const res = await fetch(`/api/v1/projects/public/${projectId}`);
+        const res = await fetch(`/api/v1/projects/public/${encodeURIComponent(projectId)}`, { cache: "no-store" });
         const json = await res.json().catch(() => ({}));
         const data = json?.data;
         if (!res.ok || !data?.project) {
@@ -162,12 +171,16 @@ export default function PropertyDetailPage() {
           setLoading(false);
           return;
         }
-        setProject(data.project as Project);
+        const proj = data.project as Project & { id?: string; slug?: string };
+        setProject(proj);
         if (data?.propertyDetails) {
           setPropertyDetails(data.propertyDetails as PropertyDetails);
         }
         if (Array.isArray(data?.propertyAmenities)) {
           setAmenities(data.propertyAmenities as PropertyAmenity[]);
+        }
+        if (proj?.slug && proj?.id && projectId === proj.id) {
+          router.replace(`/property/${proj.slug}`, { scroll: false });
         }
       } catch {
         setNotFound(true);
@@ -206,12 +219,14 @@ export default function PropertyDetailPage() {
   // Data from CMS only (no static fallbacks)
   const tagline = propertyDetails?.tagline ?? "";
   const price = propertyDetails?.price ?? "";
-  const priceLabel = propertyDetails?.priceLabel ?? "Price";
+  const priceLabel = propertyDetails?.priceLabel ?? "";
   const reraNumber = propertyDetails?.reraNumber ?? "";
   const heroImage = propertyDetails?.heroImage || project?.image || "";
   const about = propertyDetails?.about ?? "";
   const stats = propertyDetails?.stats ?? null;
   const projectStatusVideo = propertyDetails?.videoUrl ?? "";
+  const walkthroughVideoUrl = (propertyDetails as Record<string, unknown>)?.walkthroughVideoUrl ?? propertyDetails?.videoUrl ?? "";
+  const brochureUrl = propertyDetails?.brochureUrl ?? "";
   const nearbyPlacesList = (propertyDetails?.location as { nearbyPlaces?: { name: string; distance: string; type: string }[] } | undefined)?.nearbyPlaces ?? [];
   const specificationsList = Array.isArray(propertyDetails?.specifications) ? propertyDetails.specifications : [];
   const mapUrl = (propertyDetails?.location as { mapUrl?: string } | undefined)?.mapUrl ?? "";
@@ -268,14 +283,13 @@ export default function PropertyDetailPage() {
     <main className="min-h-screen overflow-x-hidden">
       <Header />
 
-      {/* Hero Section */}
+      {/* Hero Section - image from CMS only */}
       <section className="relative min-h-[400px] md:h-[550px]">
-        <Image
-          src={heroImage || "/placeholder.svg"}
-          alt={project.title}
-          fill
-          className="object-cover"
-        />
+        {heroImage ? (
+          <Image src={heroImage} alt={project.title} fill className="object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-[#1F2A54]" aria-hidden />
+        )}
         <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/20 to-black/50" />
         
         <div className="absolute inset-0 flex items-center">
@@ -287,16 +301,18 @@ export default function PropertyDetailPage() {
                   {tagline || project.title}
                 </h1>
                 
-                {/* Price Card */}
+                {/* Price Card - from CMS only */}
+                {(price || priceLabel) && (
                 <div className="bg-white rounded-lg shadow-lg p-3 md:p-4 inline-flex items-center gap-3 md:gap-4 max-w-full">
                   <div className="border-r border-gray-300 pr-3 md:pr-4 flex-shrink-0">
-                    <span className="text-gray-600 text-xs md:text-sm">{priceLabel}:</span>
+                    <span className="text-gray-600 text-xs md:text-sm">{priceLabel || "Price"}:</span>
                   </div>
                   <div className="min-w-0">
                     <p className="text-[#1F2A54] font-bold text-lg sm:text-xl md:text-3xl truncate">{price ? `START AT ${price}*` : "Price on request"}</p>
                     <p className="text-gray-500 text-xs">*T&C APPLY</p>
                   </div>
                 </div>
+                )}
               </div>
 
               {/* Right - Property Info (hidden on very small screens, shown as column on mobile) */}
@@ -342,12 +358,7 @@ export default function PropertyDetailPage() {
 
       {/* Stats Bar - from CMS only */}
       {stats && (
-        <section 
-          className="py-12 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/images/overview-bg.png')`,
-          }}
-        >
+        <section className="py-12 bg-[#E8F4FA]">
           <div className="max-w-[1200px] mx-auto px-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-6 gap-x-4 text-center">
               <div>
@@ -379,9 +390,9 @@ export default function PropertyDetailPage() {
         </section>
       )}
 
-      {/* Navigation Tabs - CSS sticky positioning below header */}
-      <div 
-        className="bg-white border-b border-gray-200 sticky top-[72px] md:top-[100px] z-40 shadow-sm"
+      {/* Navigation Tabs - sticky only on scroll, sticks below main nav */}
+      <div
+        className="bg-white border-b border-gray-200 sticky top-[80px] md:top-[108px] z-40 shadow-sm"
       >
         <div className="max-w-[1200px] mx-auto px-2 md:px-4 py-2 md:py-4">
           <div className="-mx-2 px-2 overflow-x-auto mt-2 md:mt-4 pt-2 pb-2" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -405,7 +416,7 @@ export default function PropertyDetailPage() {
       </div>
 
       {/* About Project */}
-      <section id="overview" className="py-16 bg-white">
+      <section id="overview" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <div className="flex flex-col md:flex-row gap-12">
             {/* Left Content - 65% width */}
@@ -415,26 +426,23 @@ export default function PropertyDetailPage() {
                 <span className="block w-16 h-0.5 bg-[#DDA21A] mt-2"></span>
               </h2>
               <div className="text-gray-600 leading-relaxed space-y-4 text-justify whitespace-pre-line">
-                {about || "No description available."}
+                {about || ""}
               </div>
             </div>
-            {/* Right Image - 35% width */}
+            {/* Right Image - from CMS only */}
+            {(heroImage && (
             <div className="md:w-[35%]">
               <div className="relative h-[450px] rounded-2xl overflow-hidden shadow-lg">
-                <Image
-                  src={heroImage || "/placeholder.svg"}
-                  alt="About Project"
-                  fill
-                  className="object-cover"
-                />
+                <Image src={heroImage} alt="About Project" fill className="object-cover" />
               </div>
             </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Amenities */}
-      <section id="amenities" className="py-16 bg-white">
+      <section id="amenities" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <h2 className="font-bold text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
             Project Amenities
@@ -457,12 +465,16 @@ export default function PropertyDetailPage() {
                   onMouseEnter={() => setHoveredAmenity(index)}
                   onMouseLeave={() => setHoveredAmenity(null)}
                 >
-                  <Image
-                    src={amenity.image || "/placeholder.svg"}
-                    alt={amenity.name}
-                    fill
-                    className={`object-cover transition-all duration-500 ${isHovered ? "scale-105" : "grayscale"}`}
-                  />
+                  {amenity.image ? (
+                    <Image
+                      src={amenity.image}
+                      alt={amenity.name}
+                      fill
+                      className={`object-cover transition-all duration-500 ${isHovered ? "scale-105" : "grayscale"}`}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-[#E8F4FA] flex items-center justify-center text-[#1F2A54] text-sm font-medium" aria-hidden />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   {/* Expand icon - appears on hover */}
                   <div 
@@ -513,7 +525,7 @@ export default function PropertyDetailPage() {
           {/* Image */}
           <div className="relative w-full max-w-4xl h-[70vh] mx-4">
             <Image
-              src={amenitiesData[activeAmenity].galleryImages[galleryIndex] || "/placeholder.svg"}
+              src={amenitiesData[activeAmenity].galleryImages[galleryIndex] || NO_IMAGE_SRC}
               alt={amenitiesData[activeAmenity].name}
               fill
               className="object-contain"
@@ -543,7 +555,7 @@ export default function PropertyDetailPage() {
                 className={`relative w-16 h-12 rounded overflow-hidden border-2 ${galleryIndex === idx ? "border-[#DDA21A]" : "border-transparent"}`}
               >
                 <Image
-                  src={img || "/placeholder.svg"}
+                  src={img || NO_IMAGE_SRC}
                   alt={`Thumbnail ${idx + 1}`}
                   fill
                   className="object-cover"
@@ -554,61 +566,65 @@ export default function PropertyDetailPage() {
         </div>
       )}
 
-      {/* Floor Plans - from CMS only (section hidden when no data) */}
-      {floorPlanImages.length > 0 && (
-        <section id="floor-plan" className="py-16 bg-[#E8F4FA]">
-          <div className="max-w-[1200px] mx-auto px-4">
-            <h2 className="font-sans font-medium text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
-              Project Plans
-            </h2>
+      {/* Floor Plan - always show section; content from CMS */}
+      <section id="floor-plan" className="py-16 bg-[#E8F4FA] scroll-mt-[132px] md:scroll-mt-[172px]">
+        <div className="max-w-[1200px] mx-auto px-4">
+          <h2 className="font-sans font-medium text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
+            Floor Plan
+          </h2>
+          {floorPlanImages.length > 0 ? (
             <div className="relative">
-              <button onClick={prevFloorPlan} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-12 h-12 flex items-center justify-center hover:scale-110 transition-transform duration-300" aria-label="Previous">
-                <Image src="/images/left-arrow.png" alt="Previous" width={48} height={48} className="w-12 h-12" />
+              <button onClick={prevFloorPlan} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-12 h-12 flex items-center justify-center hover:scale-110 transition-transform duration-300 bg-white/90 rounded-full shadow" aria-label="Previous">
+                <ChevronLeft className="w-8 h-8 text-[#1F2A54]" />
               </button>
               <div className="overflow-hidden px-8">
                 <div className="flex gap-6 transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${floorPlanSlide * (100 / 3 + 2)}%)` }}>
                   {floorPlanImages.map((plan, index) => (
-                    <div key={index} className="relative h-[200px] sm:h-[280px] md:h-[320px] rounded-lg overflow-hidden cursor-pointer group flex-shrink-0" style={{ width: "min(calc(33.333% - 16px), 300px)", minWidth: "200px" }}>
-                      <Image src={plan.src || "/placeholder.svg"} alt={plan.alt} fill className="object-contain transition-all duration-500 group-hover:scale-105" />
+                    <div key={index} className="relative h-[200px] sm:h-[280px] md:h-[320px] rounded-lg overflow-hidden cursor-pointer group flex-shrink-0 bg-[#f0f0f0]" style={{ width: "min(calc(33.333% - 16px), 300px)", minWidth: "200px" }}>
+                      {plan.src ? <Image src={plan.src} alt={plan.alt} fill className="object-contain transition-all duration-500 group-hover:scale-105" /> : <span className="absolute inset-0 flex items-center justify-center text-[#666] text-sm">No image</span>}
                     </div>
                   ))}
                 </div>
               </div>
-              <button onClick={nextFloorPlan} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-12 h-12 flex items-center justify-center hover:scale-110 transition-transform duration-300" aria-label="Next">
-                <Image src="/images/right-arrow.png" alt="Next" width={48} height={48} className="w-12 h-12" />
+              <button onClick={nextFloorPlan} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-12 h-12 flex items-center justify-center hover:scale-110 transition-transform duration-300 bg-white/90 rounded-full shadow" aria-label="Next">
+                <ChevronRight className="w-8 h-8 text-[#1F2A54]" />
               </button>
             </div>
-          </div>
-        </section>
-      )}
+          ) : (
+            <p className="text-center text-[#666666] py-8">No floor plans added yet. Add in Admin → Project Details → Floor Plan.</p>
+          )}
+        </div>
+      </section>
 
-      {/* Gallery - from CMS only (section hidden when no data) */}
-      {allGalleryImages.length > 0 && (
-        <section id="gallery" className="py-16 bg-white">
-          <div className="max-w-[1200px] mx-auto px-4">
-            <h2 className="font-sans font-medium text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
-              Gallery
-            </h2>
+      {/* Gallery - always show section; content from CMS */}
+      <section id="gallery" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
+        <div className="max-w-[1200px] mx-auto px-4">
+          <h2 className="font-sans font-medium text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
+            Gallery
+          </h2>
+          {allGalleryImages.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {allGalleryImages.map((src, index) => (
-                <div key={`gallery-${index}`} className="relative h-[180px] rounded-xl overflow-hidden group cursor-pointer" onClick={() => openMainGallery(index)}>
-                  <Image src={src || "/placeholder.svg"} alt={`Gallery ${index + 1}`} fill className="object-cover transition-all duration-500 group-hover:scale-110" />
+                <div key={`gallery-${index}`} className="relative h-[180px] rounded-xl overflow-hidden group cursor-pointer bg-[#f0f0f0]" onClick={() => openMainGallery(index)}>
+                  {src ? <Image src={src} alt={`Gallery ${index + 1}`} fill className="object-cover transition-all duration-500 group-hover:scale-110" /> : <span className="absolute inset-0 flex items-center justify-center text-[#666] text-sm">No image</span>}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300" />
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-      )}
+          ) : (
+            <p className="text-center text-[#666666] py-8">No gallery images added yet. Add in Admin → Project Details → Gallery.</p>
+          )}
+        </div>
+      </section>
 
-      {/* Near By Location */}
-      <section id="location" className="py-16 bg-white">
+      {/* Near By Location - from CMS */}
+      <section id="location" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <h2 className="font-sans font-bold text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
-            Near By urvi skyline
+            Location &amp; Nearby
           </h2>
           <p className="text-center text-[#666666] text-sm mb-10 max-w-3xl mx-auto">
-            Swipe your fingers to explore our dynamic spaces. The value we bring with our inspired spaces in this landmark residential project in Hyderabad is astounding.
+            {((propertyDetails?.location as { address?: string })?.address) || `Explore ${project.title} and surrounding area.`}
           </p>
           
           <div className="flex flex-col md:flex-row gap-4">
@@ -695,16 +711,14 @@ export default function PropertyDetailPage() {
         </div>
       </section>
 
-      {/* Project Status - video from CMS only */}
-      {projectStatusVideo && (
-        <section id="project-status" ref={videoSectionRef} className="py-16 relative min-h-[400px]">
-          <div className="absolute inset-0">
-            <Image src="/images/project-status-bg.png" alt="" fill className="object-cover" />
-          </div>
-          <div className="relative z-10 max-w-[1200px] mx-auto px-4">
-            <h2 className="font-sans font-bold text-2xl md:text-3xl text-white text-center mb-4">
-              Project Status
-            </h2>
+      {/* Project Status - video from CMS */}
+      <section id="project-status" ref={videoSectionRef} className="py-16 relative min-h-[300px] scroll-mt-[132px] md:scroll-mt-[172px] bg-[#1F2A54]">
+        <div className="absolute inset-0 bg-[#1F2A54]" aria-hidden />
+        <div className="relative z-10 max-w-[1200px] mx-auto px-4">
+          <h2 className="font-sans font-bold text-2xl md:text-3xl text-white text-center mb-4">
+            Project Status
+          </h2>
+          {projectStatusVideo ? (
             <div className="relative aspect-video max-w-3xl mx-auto rounded-2xl overflow-hidden bg-black/30 backdrop-blur-sm">
               <iframe
                 src={projectStatusVideo}
@@ -714,62 +728,116 @@ export default function PropertyDetailPage() {
                 allowFullScreen
               />
             </div>
-          </div>
-        </section>
-      )}
-
-      {/* Specifications - from CMS only */}
-      {specificationsList.length > 0 && (
-      <section id="specifications" className="py-16 bg-[#F5F5F5]">
-        <div className="max-w-[1200px] mx-auto px-4">
-          <h2 className="font-sans font-bold text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
-            Project Specifications
-          </h2>
-          <p className="text-center text-[#666666] text-sm mb-10 max-w-3xl mx-auto">
-            Specifications from CMS.
-          </p>
-          
-          <div className="flex flex-col md:flex-row">
-            <div className="w-full md:w-[35%] pr-0 md:pr-8 border-b md:border-b-0 md:border-r border-gray-300 pb-4 md:pb-0">
-              <div className="flex flex-wrap md:flex-col gap-1 md:gap-0 md:space-y-1">
-                {specificationTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveSpecTab(tab.id)}
-                    className={`w-full text-left py-2 flex items-start gap-2 transition-colors ${
-                      activeSpecTab === tab.id ? "text-[#DDA21A]" : "text-[#1F2A54]"
-                    }`}
-                  >
-                    <span className="mt-1.5 w-2 h-2 rounded-full bg-current flex-shrink-0" />
-                    <span className="font-medium text-sm">
-                      {tab.label}
-                      {tab.sublabel && <span className="block">{tab.sublabel}</span>}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            {/* Right Side - Content from CMS */}
-            <div className="w-full md:w-[65%] pl-0 md:pl-8 mt-8 md:mt-0">
-              {activeSpecContent && (
-                <div className="space-y-4">
-                  {Array.isArray((activeSpecContent as { items?: string[] }).items) &&
-                    ((activeSpecContent as { items: string[] }).items).map((item, idx) => (
-                      <p key={idx} className="text-[#666666] text-sm flex items-start gap-2">
-                        <span className="mt-1.5">•</span>
-                        <span>{item}</span>
-                      </p>
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
+          ) : (
+            <p className="text-center text-white/80 py-8">No project status video added yet. Add in Admin → Project Details → Project Status.</p>
+          )}
         </div>
       </section>
-      )}
 
-      {/* Walk Through - only when CMS has walkthrough video URL (no static content) */}
+      {/* Specifications - always show section; content from CMS */}
+      <section id="specifications" className="py-16 bg-[#F5F5F5] scroll-mt-[132px] md:scroll-mt-[172px]">
+        <div className="max-w-[1200px] mx-auto px-4">
+          <h2 className="font-sans font-bold text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
+            Specifications
+          </h2>
+          {specificationsList.length > 0 ? (
+            <>
+              <p className="text-center text-[#666666] text-sm mb-10 max-w-3xl mx-auto">
+                Project specifications from CMS.
+              </p>
+              <div className="flex flex-col md:flex-row">
+                <div className="w-full md:w-[35%] pr-0 md:pr-8 border-b md:border-b-0 md:border-r border-gray-300 pb-4 md:pb-0">
+                  <div className="flex flex-wrap md:flex-col gap-1 md:gap-0 md:space-y-1">
+                    {specificationTabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveSpecTab(tab.id)}
+                        className={`w-full text-left py-2 flex items-start gap-2 transition-colors ${
+                          activeSpecTab === tab.id ? "text-[#DDA21A]" : "text-[#1F2A54]"
+                        }`}
+                      >
+                        <span className="mt-1.5 w-2 h-2 rounded-full bg-current flex-shrink-0" />
+                        <span className="font-medium text-sm">
+                          {tab.label}
+                          {tab.sublabel && <span className="block">{tab.sublabel}</span>}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="w-full md:w-[65%] pl-0 md:pl-8 mt-8 md:mt-0">
+                  {activeSpecContent && (
+                    <div className="space-y-4">
+                      {Array.isArray((activeSpecContent as { items?: string[] }).items) &&
+                        ((activeSpecContent as { items: string[] }).items).map((item, idx) => (
+                          <p key={idx} className="text-[#666666] text-sm flex items-start gap-2">
+                            <span className="mt-1.5">•</span>
+                            <span>{item}</span>
+                          </p>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-center text-[#666666] py-8">No specifications added yet. Add in Admin → Project Details → Specifications.</p>
+          )}
+        </div>
+      </section>
+
+      {/* Project video - always show section; content from CMS */}
+      <section id="walkthrough" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
+        <div className="max-w-[1200px] mx-auto px-4">
+          <h2 className="font-sans font-bold text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
+            Project video
+          </h2>
+          {walkthroughVideoUrl ? (
+            <>
+              <p className="text-center text-[#666666] text-sm mb-10 max-w-3xl mx-auto">
+                Watch the walkthrough of this project.
+              </p>
+              <div className="relative aspect-video max-w-3xl mx-auto rounded-2xl overflow-hidden bg-black/10">
+                <iframe
+                  src={walkthroughVideoUrl}
+                  title="Project walkthrough video"
+                  className="absolute inset-0 w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </>
+          ) : (
+            <p className="text-center text-[#666666] py-8">No project video added yet. Add in Admin → Project Details → Project video.</p>
+          )}
+        </div>
+      </section>
+
+      {/* Brochure - always show section; content from CMS */}
+      <section id="brochure" className="py-16 bg-[#F5F5F5] scroll-mt-[132px] md:scroll-mt-[172px]">
+        <div className="max-w-[1200px] mx-auto px-4 text-center">
+          <h2 className="font-sans font-bold text-2xl md:text-3xl text-[#1F2A54] mb-4">
+            Brochure
+          </h2>
+          {brochureUrl ? (
+            <>
+              <p className="text-[#666666] text-sm mb-8 max-w-2xl mx-auto">
+                Download or view the project brochure.
+              </p>
+              <a
+                href={brochureUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-[#1F2A54] hover:bg-[#1F2A54]/90 text-white font-medium px-8 py-4 rounded-lg transition-colors"
+              >
+                View / Download Brochure <ChevronRight className="w-4 h-4" />
+              </a>
+            </>
+          ) : (
+            <p className="text-[#666666] py-8">No brochure link added yet. Add in Admin → Project Details → Brochure.</p>
+          )}
+        </div>
+      </section>
 
       <Footer />
 
@@ -795,7 +863,7 @@ export default function PropertyDetailPage() {
           {/* Main Image */}
           <div className="relative w-full max-w-4xl h-[70vh] mx-4 md:mx-16">
             <Image
-              src={allGalleryImages[mainGalleryIndex] || "/placeholder.svg"}
+              src={allGalleryImages[mainGalleryIndex] || NO_IMAGE_SRC}
               alt={`Gallery ${mainGalleryIndex + 1}`}
               fill
               className="object-contain"
@@ -821,7 +889,7 @@ export default function PropertyDetailPage() {
                 }`}
               >
                 <Image
-                  src={src || "/placeholder.svg"}
+                  src={src || NO_IMAGE_SRC}
                   alt={`Thumbnail ${index + 1}`}
                   fill
                   className="object-cover"

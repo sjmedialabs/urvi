@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getProjects, updateProject } from "@/lib/firestore";
+import { getProjects } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,17 +30,18 @@ export default function EditProjectPage() {
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
-  
+
+  const [project, setProject] = useState<{ id: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     title: "",
     type: "",
     location: "",
     image: "",
     description: "",
-    tagline: "YOUR HOME TO LIVE YOUR LIFE AT ITS BEST",
+    tagline: "",
     heroImage: "",
     price: "",
     priceLabel: "Price",
@@ -73,17 +74,33 @@ export default function EditProjectPage() {
   useEffect(() => {
     async function loadProject() {
       try {
-        const projects = await getProjects();
-        const project = projects.find(p => p.id === projectId);
-        if (project) {
-          setFormData({
-            ...formData,
-            title: project.title,
-            type: project.type,
-            location: project.location,
-            image: project.image,
-            description: project.description || "",
-          });
+        const res = await fetch(`/api/v1/projects/public/${encodeURIComponent(projectId)}`, { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+        const projectData = json?.data?.project;
+        if (projectData) {
+          setProject({ id: projectData.id });
+          setFormData((prev) => ({
+            ...prev,
+            title: projectData.title ?? "",
+            type: projectData.type ?? "",
+            location: projectData.location ?? "",
+            image: projectData.image ?? "",
+            description: projectData.description ?? "",
+          }));
+        } else {
+          const projects = await getProjects();
+          const p = projects.find((x) => x.id === projectId);
+          if (p) {
+            setProject({ id: p.id });
+            setFormData((prev) => ({
+              ...prev,
+              title: p.title,
+              type: p.type,
+              location: p.location,
+              image: p.image,
+              description: p.description || "",
+            }));
+          }
         }
       } catch (error) {
         console.error("Error loading project:", error);
@@ -91,32 +108,63 @@ export default function EditProjectPage() {
         setLoading(false);
       }
     }
-    
-    if (user && projectId) {
+
+    if (projectId) {
       loadProject();
     }
-  }, [user, projectId]);
+  }, [projectId]);
 
   const handleSave = async () => {
     if (!formData.title || !formData.type || !formData.location) {
       alert("Please fill in required fields: Title, Type, and Location");
       return;
     }
+    if (!user?.getIdToken) {
+      alert("You must be logged in to save.");
+      return;
+    }
+    const idToSave = project?.id ?? projectId;
+    if (!idToSave) {
+      alert("Project not loaded yet. Please wait and try again.");
+      return;
+    }
 
     setSaving(true);
     try {
-      await updateProject(projectId, {
-        title: formData.title,
-        type: formData.type,
-        location: formData.location,
-        image: formData.image || formData.heroImage,
-        description: formData.description,
-      });
-      
+      const token = await user.getIdToken();
+      const res = await fetch(
+        `/api/v1/projects/${idToSave}?t=${Date.now()}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            title: formData.title,
+            type: formData.type,
+            location: formData.location,
+            image: formData.image || formData.heroImage,
+            description: formData.description,
+          }),
+          cache: "no-store",
+        }
+      );
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error ?? `Save failed (${res.status})`);
+      const updatedProject = json?.data?.project;
+      if (updatedProject) {
+        setFormData((prev) => ({
+          ...prev,
+          title: updatedProject.title ?? prev.title,
+          type: updatedProject.type ?? prev.type,
+          location: updatedProject.location ?? prev.location,
+          image: updatedProject.image ?? prev.image,
+          description: updatedProject.description ?? prev.description,
+        }));
+      }
+      alert("Project saved successfully.");
       router.push("/admin/dashboard/projects");
     } catch (error) {
       console.error("Error saving project:", error);
-      alert("Failed to save project. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to save project. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -248,7 +296,7 @@ export default function EditProjectPage() {
                 id="tagline"
                 value={formData.tagline}
                 onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                placeholder="YOUR HOME TO LIVE YOUR LIFE AT ITS BEST"
+                placeholder="Hero tagline"
               />
             </div>
             <div className="space-y-2">

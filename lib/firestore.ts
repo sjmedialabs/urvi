@@ -736,19 +736,17 @@ export async function updatePropertyDetails(projectId: string, details: Partial<
   if (!firestore) throw new Error('Firestore not configured');
   const detailsRef = doc(firestore, 'propertyDetails', projectId);
   const snapshot = await getDoc(detailsRef);
-  
+  const data = {
+    ...details,
+    projectId,
+    updatedAt: Timestamp.now(),
+    ...(snapshot.exists() ? {} : { createdAt: Timestamp.now() }),
+  } as Record<string, unknown>;
+  const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
   if (snapshot.exists()) {
-    await updateDoc(detailsRef, {
-      ...details,
-      updatedAt: Timestamp.now(),
-    });
+    await updateDoc(detailsRef, clean);
   } else {
-    await addDoc(collection(firestore, 'propertyDetails'), {
-      ...details,
-      projectId,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
+    await setDoc(detailsRef, clean);
   }
 }
 

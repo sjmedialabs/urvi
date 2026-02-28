@@ -29,7 +29,13 @@ if (isFirebaseConfigured) {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
-  } catch {
+    if (typeof console !== "undefined" && console.info) {
+      console.info("[firebase] Client initialized for project:", firebaseConfig.projectId || "(missing)");
+    }
+  } catch (err) {
+    if (typeof console !== "undefined" && console.error) {
+      console.error("[firebase] Client init failed:", err instanceof Error ? err.message : err);
+    }
     app = null;
     auth = null;
     db = null;

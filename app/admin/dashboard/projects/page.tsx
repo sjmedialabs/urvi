@@ -62,7 +62,7 @@ export default function ProjectsPage() {
       // Prefer API (Admin SDK) so list works even when client Firestore rules block read
       if (user && typeof user.getIdToken === "function") {
         const token = await user.getIdToken();
-        const res = await fetch("/api/v1/projects", { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch("/api/v1/projects", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
         if (res.ok) {
           const json = await res.json();
           setProjects(json.data ?? []);

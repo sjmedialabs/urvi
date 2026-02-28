@@ -1,13 +1,14 @@
 /**
  * POST /api/v1/media/upload - Upload image or icon (admin only).
  * FormData: file (required), folder (optional), type (optional: "image" | "icon").
- * Config: MAX_FILE_SIZE_MB, allowed types PNG/JPG/SVG/WebP.
+ * Saves to public/uploads (or public/icons). Config: MAX_UPLOAD_MB.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 import { requireAuth } from "@/lib/api/auth";
-import { apiError, apiInternalError } from "@/lib/api/errors";
+import { apiInternalError } from "@/lib/api/errors";
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -56,16 +57,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ext = file.name.split(".").pop() || "bin";
+    const ext = (file.name.split(".").pop() || "bin").replace(/[^a-z0-9]/gi, "");
     const prefix = typeHint === "icon" ? "icons" : folder;
-    const filename = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
-
-    const blob = await put(filename, file, { access: "public" });
+    const baseName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+    const dir = path.join(process.cwd(), "public", prefix);
+    await mkdir(dir, { recursive: true });
+    const filepath = path.join(dir, baseName);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await writeFile(filepath, buffer);
+    const url = `/${prefix}/${baseName}`;
 
     return NextResponse.json({
       data: {
-        url: blob.url,
-        filename,
+        url,
+        filename: `${prefix}/${baseName}`,
         size: file.size,
         type: file.type,
       },

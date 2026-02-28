@@ -89,10 +89,14 @@ export default function AdminDashboardLayout({
         const token = await user.getIdToken();
         const res = await fetch("/api/v1/categories", {
           headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
         });
         if (res.ok) {
           const json = await res.json();
           setCategories(json.data ?? []);
+        } else {
+          const errBody = await res.json().catch(() => ({}));
+          console.warn("Categories API returned", res.status, errBody?.error ?? errBody);
         }
       } catch (error) {
         console.error("Error fetching categories for sidebar:", error);

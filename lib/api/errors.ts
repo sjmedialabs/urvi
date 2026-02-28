@@ -11,6 +11,7 @@ export const API_ERRORS = {
   NOT_FOUND: { message: "Resource not found", status: 404 },
   CONFLICT: { message: "Conflict", status: 409 },
   TOO_MANY_REQUESTS: { message: "Too many requests", status: 429 },
+  SERVICE_UNAVAILABLE: { message: "Service unavailable", status: 503 },
   INTERNAL: { message: "Internal server error", status: 500 },
 } as const;
 

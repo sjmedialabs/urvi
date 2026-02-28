@@ -244,13 +244,15 @@ export default function ProjectsPage() {
                   {projects.map((project) => (
                     <TableRow key={project.id}>
                       <TableCell>
-                        <div className="relative w-16 h-12 rounded overflow-hidden">
-                          <Image
-                            src={project.image || "/images/project-1.jpg"}
-                            alt={project.title}
-                            fill
-                            className="object-cover"
-                          />
+                        <div className="relative w-16 h-12 rounded overflow-hidden bg-gray-200">
+                          {project.image ? (
+                            <Image
+                              src={project.image}
+                              alt={project.title}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell className="font-medium text-[#1F2A54]">
@@ -274,7 +276,7 @@ export default function ProjectsPage() {
                               <Eye size={16} />
                             </Button>
                           </Link>
-                          <Link href={`/admin/dashboard/projects/edit/${project.id}`}>
+                          <Link href={`/admin/dashboard/projects/${project.id}`}>
                             <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-transparent">
                               <Pencil size={16} />
                             </Button>
@@ -305,13 +307,15 @@ export default function ProjectsPage() {
               <Card key={project.id}>
                 <CardContent className="p-4">
                   <div className="flex gap-3">
-                    <div className="relative w-20 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image
-                        src={project.image || "/images/project-1.jpg"}
-                        alt={project.title}
-                        fill
-                        className="object-cover"
-                      />
+                    <div className="relative w-20 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
+                      {project.image ? (
+                        <Image
+                          src={project.image}
+                          alt={project.title}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : null}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-[#1F2A54] truncate">{project.title}</h3>
@@ -332,7 +336,7 @@ export default function ProjectsPage() {
                         <Eye size={14} className="mr-1" /> View
                       </Button>
                     </Link>
-                    <Link href={`/admin/dashboard/projects/edit/${project.id}`}>
+                    <Link href={`/admin/dashboard/projects/${project.id}`}>
                       <Button variant="outline" size="sm" className="h-8 px-3 bg-transparent text-xs">
                         <Pencil size={14} className="mr-1" /> Edit
                       </Button>

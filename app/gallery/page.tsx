@@ -22,12 +22,13 @@ export default function GalleryPage() {
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<ProjectGallery | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [heroTitle, setHeroTitle] = useState("PROJECT GALOUR LATEST\nPROJECTSLARY");
+  const [heroImage, setHeroImage] = useState("/images/gallery-banner.png");
 
   useEffect(() => {
     async function fetchGallery() {
       try {
         const data = await getGalleryImages();
-        // Convert GalleryImage to ProjectGallery format
         const converted: ProjectGallery[] = data.map((item) => ({
           id: item.id,
           title: item.title,
@@ -42,7 +43,18 @@ export default function GalleryPage() {
         setLoading(false);
       }
     }
+    async function fetchHero() {
+      try {
+        const res = await fetch("/api/v1/content/pages/gallery");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          if (json.data.heroTitle) setHeroTitle(json.data.heroTitle);
+          if (json.data.heroImage) setHeroImage(json.data.heroImage);
+        }
+      } catch {}
+    }
     fetchGallery();
+    fetchHero();
   }, []);
 
   const openGalleryPopup = (project: ProjectGallery) => {
@@ -78,9 +90,9 @@ export default function GalleryPage() {
       <Header />
 
       {/* Hero Banner */}
-      <section className="relative h-[300px] md:h-[350px]">
+      <section className="relative h-[500px]">
         <Image
-          src="/images/gallery-banner.png"
+          src={heroImage}
           alt="Gallery Banner"
           fill
           className="object-cover"
@@ -88,10 +100,10 @@ export default function GalleryPage() {
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <h1 className="inner-hero-title font-serif text-white tracking-wide">
-              PROJECT GALOUR LATEST
-              <br />
-              PROJECTSLARY
+            <h1 className="inner-hero-title font-royal text-white tracking-wide">
+              {heroTitle.split("\n").map((line, i) => (
+                <span key={i}>{line}{i < heroTitle.split("\n").length - 1 && <br />}</span>
+              ))}
             </h1>
           </div>
         </div>

@@ -19,6 +19,8 @@ export default function PlotsPage() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [heroTitle, setHeroTitle] = useState("PROJECT GALOUR LATEST\nPROJECTSLARY");
+  const [heroImage, setHeroImage] = useState("/images/video-bg.jpg");
 
   useEffect(() => {
     async function fetchProjects() {
@@ -27,7 +29,11 @@ export default function PlotsPage() {
         const json = await res.json().catch(() => ({}));
         const list = Array.isArray(json?.data) ? json.data : [];
         const plotProjects = list
-          .filter((p: { category?: string }) => p.category === "plots")
+          .filter((p: { category?: string; type?: string }) => {
+            const cat = (p.category || "").toLowerCase();
+            const type = (p.type || "").toLowerCase();
+            return cat === "plot" || cat === "plots" || type === "plots";
+          })
           .map((p: Record<string, unknown>) => ({ id: p.id, ...p } as Project));
         setProjects(plotProjects);
       } catch {
@@ -36,21 +42,38 @@ export default function PlotsPage() {
         setLoading(false);
       }
     }
+    async function fetchHero() {
+      try {
+        const res = await fetch("/api/v1/content/pages/plots");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          if (json.data.title) setHeroTitle(json.data.title);
+          if (json.data.heroImage) setHeroImage(json.data.heroImage);
+        }
+      } catch {}
+    }
     fetchProjects();
+    fetchHero();
   }, []);
 
   const filteredProjects = activeFilter === "all" 
     ? projects 
-    : projects.filter(p => p.status === activeFilter);
+    : projects.filter(p => {
+        const s = (p.status || "").toLowerCase();
+        if (activeFilter === "ongoing") return s === "ongoing" || s === "under construction";
+        if (activeFilter === "upcoming") return s === "upcoming";
+        if (activeFilter === "completed") return s === "completed" || s === "ready to move";
+        return false;
+      });
 
   return (
     <main className="min-h-screen overflow-x-hidden">
       <Header />
       
       {/* Hero Section */}
-      <section className="relative h-[300px] md:h-[400px]">
+      <section className="relative h-[500px]">
         <Image
-          src="/images/video-bg.jpg"
+          src={heroImage}
           alt="Plots"
           fill
           className="object-cover"
@@ -58,7 +81,9 @@ export default function PlotsPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#C9A227]/80 to-[#C9A227]/40" />
         <div className="absolute inset-0 flex items-center justify-center">
           <h1 className="inner-hero-title font-royal text-white text-center">
-            PROJECT GALOUR LATEST<br />PROJECTSLARY
+            {heroTitle.split("\n").map((line, i) => (
+              <span key={i}>{line}{i < heroTitle.split("\n").length - 1 && <br />}</span>
+            ))}
           </h1>
         </div>
       </section>
@@ -101,12 +126,16 @@ export default function PlotsPage() {
                   className="group block"
                 >
                   <div className="relative h-[420px] rounded-[20px] overflow-hidden border border-gray-200 shadow-sm card-hover-lift">
-                    <Image
-                      src={project.image || "/placeholder.svg"}
-                      alt={project.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                    {project.image ? (
+                      <Image
+                        src={project.image}
+                        alt={project.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gray-200" aria-hidden />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-6">
                       <h3 className="font-bold text-white text-xl leading-tight mb-2">

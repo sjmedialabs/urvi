@@ -53,8 +53,13 @@ export default function EditProjectPage() {
     brochureUrl: "",
     status: "Under Construction",
     possessionDate: "",
+    // SEO
+    metaTitle: "",
+    metaDescription: "",
   });
 
+  const [metaKeywords, setMetaKeywords] = useState<string[]>([]);
+  const [keywordInput, setKeywordInput] = useState("");
   const [amenities, setAmenities] = useState<{ name: string; image: string; galleryImages: string[] }[]>([]);
   const [floorPlans, setFloorPlans] = useState<{ name: string; image: string }[]>([]);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
@@ -86,11 +91,44 @@ export default function EditProjectPage() {
             location: projectData.location ?? "",
             image: projectData.image ?? "",
             description: projectData.description ?? "",
+            tagline: projectData.tagline ?? "",
+            heroImage: projectData.heroImage ?? "",
+            price: projectData.price ?? "",
+            priceLabel: projectData.priceLabel ?? "Price",
+            reraNumber: projectData.reraNumber ?? "",
+            possessionDate: projectData.possessionDate ?? "",
+            about: projectData.about ?? "",
+            projectStatusVideo: projectData.projectStatusVideo ?? "",
+            walkThroughVideo: projectData.walkThroughVideo ?? "",
+            brochureUrl: projectData.brochureUrl ?? "",
+            status: projectData.status ?? "Under Construction",
+            stats: {
+              totalLandArea: projectData.stats?.totalLandArea ?? "",
+              noOfBlocks: projectData.stats?.noOfBlocks ?? "",
+              totalUnits: projectData.stats?.totalUnits ?? "",
+              configuration: projectData.stats?.configuration ?? "",
+              floors: projectData.stats?.floors ?? "",
+              possessionStarts: projectData.stats?.possessionStarts ?? "",
+            },
+            metaTitle: projectData.metaTitle ?? "",
+            metaDescription: projectData.metaDescription ?? "",
           }));
+          if (Array.isArray(projectData.metaKeywords)) setMetaKeywords(projectData.metaKeywords);
+          if (Array.isArray(projectData.amenities)) setAmenities(projectData.amenities);
+          if (Array.isArray(projectData.floorPlans)) setFloorPlans(projectData.floorPlans);
+          if (Array.isArray(projectData.galleryImages)) setGalleryImages(projectData.galleryImages);
+          if (projectData.nearbyPlaces && typeof projectData.nearbyPlaces === "object") {
+            setNearbyPlaces({
+              hospitals: Array.isArray(projectData.nearbyPlaces.hospitals) ? projectData.nearbyPlaces.hospitals : [],
+              schools: Array.isArray(projectData.nearbyPlaces.schools) ? projectData.nearbyPlaces.schools : [],
+              itParks: Array.isArray(projectData.nearbyPlaces.itParks) ? projectData.nearbyPlaces.itParks : [],
+              connectivity: Array.isArray(projectData.nearbyPlaces.connectivity) ? projectData.nearbyPlaces.connectivity : [],
+            });
+          }
         } else {
           const projects = await getProjects();
           const p = projects.find((x) => x.id === projectId);
-          if (p) {
+          if (p && p.id) {
             setProject({ id: p.id });
             setFormData((prev) => ({
               ...prev,
@@ -143,6 +181,25 @@ export default function EditProjectPage() {
             location: formData.location,
             image: formData.image || formData.heroImage,
             description: formData.description,
+            tagline: formData.tagline,
+            heroImage: formData.heroImage,
+            priceLabel: formData.priceLabel,
+            reraNumber: formData.reraNumber,
+            possessionDate: formData.possessionDate,
+            about: formData.about,
+            projectStatusVideo: formData.projectStatusVideo,
+            walkThroughVideo: formData.walkThroughVideo,
+            brochureUrl: formData.brochureUrl,
+            price: formData.price,
+            status: formData.status,
+            stats: formData.stats,
+            amenities,
+            floorPlans,
+            galleryImages,
+            nearbyPlaces,
+            metaTitle: formData.metaTitle,
+            metaDescription: formData.metaDescription,
+            metaKeywords,
           }),
           cache: "no-store",
         }
@@ -635,6 +692,78 @@ export default function EditProjectPage() {
                 onChange={(e) => setFormData({ ...formData, brochureUrl: e.target.value })}
                 placeholder="https://..."
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SEO */}
+        <Card>
+          <CardHeader>
+            <CardTitle>SEO Settings</CardTitle>
+            <CardDescription>Search engine optimization for this property page</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="metaTitle">Meta Title</Label>
+              <Input
+                id="metaTitle"
+                value={formData.metaTitle}
+                onChange={(e) => setFormData({ ...formData, metaTitle: e.target.value })}
+                placeholder="Page title for search engines"
+              />
+              <p className="text-xs text-muted-foreground">{formData.metaTitle.length}/60 characters</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="metaDescription">Meta Description</Label>
+              <Textarea
+                id="metaDescription"
+                value={formData.metaDescription}
+                onChange={(e) => setFormData({ ...formData, metaDescription: e.target.value })}
+                placeholder="Brief description for search results"
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">{formData.metaDescription.length}/160 characters</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Meta Keywords</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={keywordInput}
+                  onChange={(e) => setKeywordInput(e.target.value)}
+                  placeholder="Add a keyword"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const kw = keywordInput.trim();
+                      if (kw && !metaKeywords.includes(kw)) setMetaKeywords([...metaKeywords, kw]);
+                      setKeywordInput("");
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const kw = keywordInput.trim();
+                    if (kw && !metaKeywords.includes(kw)) setMetaKeywords([...metaKeywords, kw]);
+                    setKeywordInput("");
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              {metaKeywords.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {metaKeywords.map((kw) => (
+                    <span key={kw} className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded text-sm">
+                      {kw}
+                      <button onClick={() => setMetaKeywords(metaKeywords.filter((k) => k !== kw))} className="hover:text-red-500">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

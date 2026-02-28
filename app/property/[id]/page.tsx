@@ -191,6 +191,25 @@ export default function PropertyDetailPage() {
     loadData();
   }, [projectId]);
 
+  // Scroll spy: update activeTab based on which section is in view
+  useEffect(() => {
+    if (loading) return;
+    const sectionIds = navTabs.map((t) => t.id);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveTab(entry.target.id);
+          }
+        }
+      },
+      { rootMargin: "-40% 0px -55% 0px", threshold: 0 }
+    );
+    const els = sectionIds.map((id) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
+    els.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [loading]);
+
   const openGallery = (amenityIndex: number) => {
     setActiveAmenity(amenityIndex);
     setGalleryIndex(0);
@@ -280,7 +299,7 @@ export default function PropertyDetailPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden">
+    <main className="min-h-screen">
       <Header />
 
       {/* Hero Section - image from CMS only */}
@@ -390,12 +409,12 @@ export default function PropertyDetailPage() {
         </section>
       )}
 
-      {/* Navigation Tabs - sticky only on scroll, sticks below main nav */}
+      {/* Navigation Tabs - sticky below the fixed header */}
       <div
-        className="bg-white border-b border-gray-200 sticky top-[80px] md:top-[108px] z-40 shadow-sm"
+        className="bg-white border-b border-gray-200 sticky top-[72px] lg:top-[108px] z-40 shadow-sm"
       >
-        <div className="max-w-[1200px] mx-auto px-2 md:px-4 py-2 md:py-4">
-          <div className="-mx-2 px-2 overflow-x-auto mt-2 md:mt-4 pt-2 pb-2" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="max-w-[1200px] mx-auto px-2 md:px-4">
+          <div className="-mx-2 px-2 overflow-x-auto py-3" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <nav className="flex items-center gap-4 md:gap-8 min-w-max mx-auto w-fit">
               {navTabs.map((tab) => (
                 <button
@@ -416,7 +435,7 @@ export default function PropertyDetailPage() {
       </div>
 
       {/* About Project */}
-      <section id="overview" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
+      <section id="overview" className="py-16 bg-white scroll-mt-[120px] lg:scroll-mt-[160px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <div className="flex flex-col md:flex-row gap-12">
             {/* Left Content - 65% width */}
@@ -442,7 +461,7 @@ export default function PropertyDetailPage() {
       </section>
 
       {/* Amenities */}
-      <section id="amenities" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
+      <section id="amenities" className="py-16 bg-white scroll-mt-[120px] lg:scroll-mt-[160px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <h2 className="font-bold text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
             Project Amenities
@@ -567,7 +586,7 @@ export default function PropertyDetailPage() {
       )}
 
       {/* Floor Plan - always show section; content from CMS */}
-      <section id="floor-plan" className="py-16 bg-[#E8F4FA] scroll-mt-[132px] md:scroll-mt-[172px]">
+      <section id="floor-plan" className="py-16 bg-[#E8F4FA] scroll-mt-[120px] lg:scroll-mt-[160px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <h2 className="font-sans font-medium text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
             Floor Plan
@@ -597,7 +616,7 @@ export default function PropertyDetailPage() {
       </section>
 
       {/* Gallery - always show section; content from CMS */}
-      <section id="gallery" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
+      <section id="gallery" className="py-16 bg-white scroll-mt-[120px] lg:scroll-mt-[160px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <h2 className="font-sans font-medium text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
             Gallery
@@ -618,7 +637,7 @@ export default function PropertyDetailPage() {
       </section>
 
       {/* Near By Location - from CMS */}
-      <section id="location" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
+      <section id="location" className="py-16 bg-white scroll-mt-[120px] lg:scroll-mt-[160px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <h2 className="font-sans font-bold text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
             Location &amp; Nearby
@@ -712,7 +731,7 @@ export default function PropertyDetailPage() {
       </section>
 
       {/* Project Status - video from CMS */}
-      <section id="project-status" ref={videoSectionRef} className="py-16 relative min-h-[300px] scroll-mt-[132px] md:scroll-mt-[172px] bg-[#1F2A54]">
+      <section id="project-status" ref={videoSectionRef} className="py-16 relative min-h-[300px] scroll-mt-[120px] lg:scroll-mt-[160px] bg-[#1F2A54]">
         <div className="absolute inset-0 bg-[#1F2A54]" aria-hidden />
         <div className="relative z-10 max-w-[1200px] mx-auto px-4">
           <h2 className="font-sans font-bold text-2xl md:text-3xl text-white text-center mb-4">
@@ -735,7 +754,7 @@ export default function PropertyDetailPage() {
       </section>
 
       {/* Specifications - always show section; content from CMS */}
-      <section id="specifications" className="py-16 bg-[#F5F5F5] scroll-mt-[132px] md:scroll-mt-[172px]">
+      <section id="specifications" className="py-16 bg-[#F5F5F5] scroll-mt-[120px] lg:scroll-mt-[160px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <h2 className="font-sans font-bold text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
             Specifications
@@ -787,7 +806,7 @@ export default function PropertyDetailPage() {
       </section>
 
       {/* Project video - always show section; content from CMS */}
-      <section id="walkthrough" className="py-16 bg-white scroll-mt-[132px] md:scroll-mt-[172px]">
+      <section id="walkthrough" className="py-16 bg-white scroll-mt-[120px] lg:scroll-mt-[160px]">
         <div className="max-w-[1200px] mx-auto px-4">
           <h2 className="font-sans font-bold text-2xl md:text-3xl text-[#1F2A54] text-center mb-4">
             Project video
@@ -814,7 +833,7 @@ export default function PropertyDetailPage() {
       </section>
 
       {/* Brochure - always show section; content from CMS */}
-      <section id="brochure" className="py-16 bg-[#F5F5F5] scroll-mt-[132px] md:scroll-mt-[172px]">
+      <section id="brochure" className="py-16 bg-[#F5F5F5] scroll-mt-[120px] lg:scroll-mt-[160px]">
         <div className="max-w-[1200px] mx-auto px-4 text-center">
           <h2 className="font-sans font-bold text-2xl md:text-3xl text-[#1F2A54] mb-4">
             Brochure

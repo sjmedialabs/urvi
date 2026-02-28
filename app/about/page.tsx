@@ -80,7 +80,7 @@ export default function AboutPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="relative h-[400px] md:h-[500px]">
+      <section className="relative h-[500px]">
         <Image
           src={content.heroImage}
           alt="Urvi Constructions Boardroom"

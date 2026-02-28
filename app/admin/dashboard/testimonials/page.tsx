@@ -26,6 +26,7 @@ import {
   Quote,
 } from "lucide-react";
 import { ImageUpload } from "@/components/admin/image-upload";
+import { Save } from "lucide-react";
 
 export default function TestimonialsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -37,6 +38,9 @@ export default function TestimonialsPage() {
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const [deletingTestimonial, setDeletingTestimonial] = useState<Testimonial | null>(null);
   const [saving, setSaving] = useState(false);
+  const [heroTitle, setHeroTitle] = useState("");
+  const [heroImage, setHeroImage] = useState("");
+  const [savingHero, setSavingHero] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     role: "",
@@ -53,8 +57,38 @@ export default function TestimonialsPage() {
   useEffect(() => {
     if (user) {
       loadTestimonials();
+      fetchHero();
     }
   }, [user]);
+
+  const fetchHero = async () => {
+    try {
+      const res = await fetch("/api/v1/content/pages/testimonials");
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.data) {
+        setHeroTitle(json.data.heroTitle ?? "");
+        setHeroImage(json.data.heroImage ?? "");
+      }
+    } catch {}
+  };
+
+  const handleSaveHero = async () => {
+    if (!user?.getIdToken) return;
+    setSavingHero(true);
+    try {
+      const token = await user.getIdToken();
+      await fetch("/api/v1/content/pages/testimonials", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ heroTitle, heroImage }),
+      });
+      alert("Hero section saved!");
+    } catch {
+      alert("Error saving hero section.");
+    } finally {
+      setSavingHero(false);
+    }
+  };
 
   const loadTestimonials = async () => {
     try {
@@ -132,6 +166,41 @@ export default function TestimonialsPage() {
 
   return (
     <div className="p-4 md:p-6">
+      {/* Hero Section Settings */}
+      <Card className="mb-6">
+        <CardContent className="p-6 space-y-4">
+          <div>
+            <h3 className="font-semibold text-[#1F2A54] mb-1">Hero Section</h3>
+            <p className="text-muted-foreground text-sm">Hero banner displayed on the Testimonials page</p>
+          </div>
+          <div>
+            <Label htmlFor="testimonialHeroTitle">Hero Title</Label>
+            <Input
+              id="testimonialHeroTitle"
+              value={heroTitle}
+              onChange={(e) => setHeroTitle(e.target.value)}
+              placeholder="e.g., TESTIMONIALS"
+            />
+          </div>
+          <div>
+            <Label>Hero Background Image</Label>
+            <ImageUpload
+              value={heroImage}
+              onChange={setHeroImage}
+              folder="cms/testimonials"
+              aspectRatio="banner"
+              placeholder="Upload testimonials hero image"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handleSaveHero} disabled={savingHero} className="bg-[#1F2A54]">
+              {savingHero && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" /> Save Hero
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#1F2A54]">Testimonials</h1>

@@ -60,7 +60,13 @@ export async function PUT(
     const projectId = await resolveProjectId(idOrSlug);
     if (!projectId) return apiError("NOT_FOUND", undefined, "Project not found");
     const body = await request.json().catch(() => ({}));
-    const { title, type, location, image, description, categoryId, category, status, price, featured } = body;
+    const {
+      title, type, location, image, description, categoryId, category, status, price, featured,
+      tagline, heroImage, priceLabel, reraNumber, possessionDate, about,
+      projectStatusVideo, walkThroughVideo, brochureUrl, stats,
+      amenities, floorPlans, galleryImages, nearbyPlaces,
+      metaTitle, metaDescription, metaKeywords,
+    } = body;
     if (!title || !type || !location) {
       return apiError("BAD_REQUEST", undefined, "title, type, and location are required");
     }
@@ -73,9 +79,26 @@ export async function PUT(
       description: description != null ? String(description) : undefined,
       categoryId: categoryId != null ? String(categoryId) : undefined,
       category: category != null ? String(category) : undefined,
-      status: status != null ? (String(status) as "ongoing" | "upcoming" | "completed") : undefined,
+      status: status != null ? String(status) : undefined,
       price: price != null ? String(price) : undefined,
       featured: featured !== undefined ? Boolean(featured) : undefined,
+      tagline: tagline != null ? String(tagline) : undefined,
+      heroImage: heroImage != null ? String(heroImage) : undefined,
+      priceLabel: priceLabel != null ? String(priceLabel) : undefined,
+      reraNumber: reraNumber != null ? String(reraNumber) : undefined,
+      possessionDate: possessionDate != null ? String(possessionDate) : undefined,
+      about: about != null ? String(about) : undefined,
+      projectStatusVideo: projectStatusVideo != null ? String(projectStatusVideo) : undefined,
+      walkThroughVideo: walkThroughVideo != null ? String(walkThroughVideo) : undefined,
+      brochureUrl: brochureUrl != null ? String(brochureUrl) : undefined,
+      stats: stats && typeof stats === "object" ? stats : undefined,
+      amenities: Array.isArray(amenities) ? amenities : undefined,
+      floorPlans: Array.isArray(floorPlans) ? floorPlans : undefined,
+      galleryImages: Array.isArray(galleryImages) ? galleryImages : undefined,
+      nearbyPlaces: nearbyPlaces && typeof nearbyPlaces === "object" ? nearbyPlaces : undefined,
+      metaTitle: metaTitle != null ? String(metaTitle) : undefined,
+      metaDescription: metaDescription != null ? String(metaDescription) : undefined,
+      metaKeywords: Array.isArray(metaKeywords) ? metaKeywords : undefined,
     });
     logAdminAction("project.update", auth.user.uid, { projectId });
     const updated = await adminGetProjectById(projectId);

@@ -12,15 +12,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save } from "lucide-react";
+import { ImageUpload } from "@/components/admin/image-upload";
 
 export default function CMSContactPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [content, setContent] = useState<ContactInfo>({
+  const [content, setContent] = useState<ContactInfo & { heroTitle?: string; heroImage?: string }>({
     address: "",
     phone: "",
     email: "",
     mapUrl: "",
+    heroTitle: "",
+    heroImage: "",
     socialLinks: {
       facebook: "",
       twitter: "",
@@ -99,6 +102,34 @@ export default function CMSContactPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Hero Section</CardTitle>
+              <CardDescription>Hero banner displayed on the Contact page</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="heroTitle">Hero Title</Label>
+                <Input
+                  id="heroTitle"
+                  value={content.heroTitle || ""}
+                  onChange={(e) => setContent({ ...content, heroTitle: e.target.value })}
+                  placeholder="e.g., CONTACT US"
+                />
+              </div>
+              <div>
+                <Label>Hero Background Image</Label>
+                <ImageUpload
+                  value={content.heroImage || ""}
+                  onChange={(url) => setContent({ ...content, heroImage: url })}
+                  folder="cms/contact"
+                  aspectRatio="banner"
+                  placeholder="Upload contact hero image"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Contact Information</CardTitle>

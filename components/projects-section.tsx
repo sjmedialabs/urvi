@@ -109,6 +109,13 @@ export function ProjectsSection() {
           </p>
         </div>
 
+        {/* Slider wrapper — always in DOM so IntersectionObserver attaches before data loads */}
+        <div
+          ref={sliderRef}
+          className={`relative transition-all duration-700 delay-200 ${
+            sliderVisible ? 'animate-on-scroll animate-fade-up animate-visible' : 'animate-on-scroll animate-fade-up'
+          }`}
+        >
         {/* Loading State */}
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -128,11 +135,8 @@ export function ProjectsSection() {
         {/* Projects Slider */}
         {!isLoading && projects.length > 0 && (
           <>
-            <div 
-              ref={sliderRef}
-              className={`relative transition-all duration-700 delay-200 ${
-                sliderVisible ? 'animate-on-scroll animate-fade-up animate-visible' : 'animate-on-scroll animate-fade-up'
-              }`}
+            <div
+              className="relative"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
@@ -169,13 +173,20 @@ export function ProjectsSection() {
                     >
                       <div className="group relative rounded-2xl overflow-hidden aspect-[3/4] cursor-pointer card-hover-lift">
                         {/* Image */}
-                        <Image
-                          src={project.image || "/placeholder.svg"}
-                          alt={project.title}
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                        
+                        {project.image ? (
+                          <Image
+                            src={project.image}
+                            alt={project.title}
+                            fill
+                            className="object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-[#1F2A54]" aria-hidden />
+                        )}
+
+                        {/* Gradient overlay for text readability */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
                         {/* Content */}
                         <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
                           <h3 className="font-extrabold text-xl md:text-2xl mb-1">
@@ -229,6 +240,7 @@ export function ProjectsSection() {
             </div>
           </>
         )}
+        </div>{/* end sliderRef wrapper */}
       </div>
     </section>
   );

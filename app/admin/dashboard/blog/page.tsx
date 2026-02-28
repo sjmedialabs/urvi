@@ -8,13 +8,13 @@ import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { getArticles, addArticle, updateArticle, deleteArticle, type Article } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Pencil, Trash2, Eye } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Eye, Save } from "lucide-react";
 import { ImageUpload } from "@/components/admin/image-upload";
 
 const categories = ["Apartment", "Villa", "Commercial", "Office", "Shop", "News", "Tips"];
@@ -24,6 +24,9 @@ export default function BlogPage() {
   const router = useRouter();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [heroTitle, setHeroTitle] = useState("");
+  const [heroImage, setHeroImage] = useState("");
+  const [savingHero, setSavingHero] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [formData, setFormData] = useState({
@@ -53,10 +56,39 @@ export default function BlogPage() {
         setLoadingData(false);
       }
     }
+    async function fetchHero() {
+      try {
+        const res = await fetch("/api/v1/content/pages/blog");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          setHeroTitle(json.data.heroTitle ?? "");
+          setHeroImage(json.data.heroImage ?? "");
+        }
+      } catch {}
+    }
     if (user) {
       fetchArticles();
+      fetchHero();
     }
   }, [user]);
+
+  const handleSaveHero = async () => {
+    if (!user?.getIdToken) return;
+    setSavingHero(true);
+    try {
+      const token = await user.getIdToken();
+      await fetch("/api/v1/content/pages/blog", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ heroTitle, heroImage }),
+      });
+      alert("Hero section saved!");
+    } catch {
+      alert("Error saving hero section.");
+    } finally {
+      setSavingHero(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +155,41 @@ export default function BlogPage() {
 
   return (
     <div className="p-6">
+      {/* Hero Section Settings */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Hero Section</CardTitle>
+          <CardDescription>Hero banner displayed on the Blog page</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="blogHeroTitle">Hero Title</Label>
+            <Input
+              id="blogHeroTitle"
+              value={heroTitle}
+              onChange={(e) => setHeroTitle(e.target.value)}
+              placeholder="e.g., OUR BLOG"
+            />
+          </div>
+          <div>
+            <Label>Hero Background Image</Label>
+            <ImageUpload
+              value={heroImage}
+              onChange={setHeroImage}
+              folder="cms/blog"
+              aspectRatio="banner"
+              placeholder="Upload blog hero image"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handleSaveHero} disabled={savingHero} className="bg-[#1F2A54]">
+              {savingHero && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" /> Save Hero
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl font-bold text-[#1F2A54]">Blog Management</h1>
         <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>

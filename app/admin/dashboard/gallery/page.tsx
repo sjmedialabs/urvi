@@ -7,7 +7,7 @@ import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { getGalleryImages, addGalleryImage, updateGalleryImage, deleteGalleryImage, type GalleryImage } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,7 +25,8 @@ import {
   Check,
   X,
   ImageIcon,
-  FolderOpen
+  FolderOpen,
+  Save,
 } from "lucide-react";
 import { ImageUpload } from "@/components/admin/image-upload";
 
@@ -36,6 +37,9 @@ export default function GalleryPage() {
   const router = useRouter();
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [heroTitle, setHeroTitle] = useState("");
+  const [heroImage, setHeroImage] = useState("");
+  const [savingHero, setSavingHero] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
@@ -73,10 +77,39 @@ export default function GalleryPage() {
         setLoadingData(false);
       }
     }
+    async function fetchHero() {
+      try {
+        const res = await fetch("/api/v1/content/pages/gallery");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          setHeroTitle(json.data.heroTitle ?? "");
+          setHeroImage(json.data.heroImage ?? "");
+        }
+      } catch {}
+    }
     if (user) {
       fetchImages();
+      fetchHero();
     }
   }, [user]);
+
+  const handleSaveHero = async () => {
+    if (!user?.getIdToken) return;
+    setSavingHero(true);
+    try {
+      const token = await user.getIdToken();
+      await fetch("/api/v1/content/pages/gallery", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ heroTitle, heroImage }),
+      });
+      alert("Hero section saved!");
+    } catch {
+      alert("Error saving hero section.");
+    } finally {
+      setSavingHero(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,10 +249,45 @@ export default function GalleryPage() {
 
   return (
     <div className="p-6">
+      {/* Hero Section Settings */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Hero Section</CardTitle>
+          <CardDescription>Hero banner displayed on the Gallery page</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="heroTitle">Hero Title</Label>
+            <Input
+              id="heroTitle"
+              value={heroTitle}
+              onChange={(e) => setHeroTitle(e.target.value)}
+              placeholder="e.g., OUR GALLERY"
+            />
+          </div>
+          <div>
+            <Label>Hero Background Image</Label>
+            <ImageUpload
+              value={heroImage}
+              onChange={setHeroImage}
+              folder="cms/gallery"
+              aspectRatio="banner"
+              placeholder="Upload gallery hero image"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handleSaveHero} disabled={savingHero} className="bg-[#1F2A54]">
+              {savingHero && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" /> Save Hero
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#1F2A54]">Media Library</h1>
+          <h1 className="text-2xl font-bold text-[#1F2A54]">Gallery</h1>
           <p className="text-muted-foreground text-sm mt-1">
             {images.length} images • {categories.length} categories
           </p>

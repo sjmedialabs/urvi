@@ -36,6 +36,8 @@ interface FormErrors {
 export default function ContactPage() {
   const [contactInfo, setContactInfo] = useState<ContactInfo>(defaultContactInfo);
   const [loading, setLoading] = useState(false);
+  const [heroTitle, setHeroTitle] = useState("PROJECT GALOUR LATEST\nPROJECTSLARY");
+  const [heroImage, setHeroImage] = useState("/images/contact-banner.png");
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -53,6 +55,8 @@ export default function ContactPage() {
         const json = await res.json().catch(() => ({}));
         if (res.ok && json?.data) {
           setContactInfo({ ...defaultContactInfo, ...json.data });
+          if (json.data.heroTitle) setHeroTitle(json.data.heroTitle);
+          if (json.data.heroImage) setHeroImage(json.data.heroImage);
         }
       } catch {
         // Silently use default contact info
@@ -144,17 +148,19 @@ export default function ContactPage() {
       <Header />
 
       {/* Hero Banner */}
-      <section className="relative h-[280px] pt-[90px]">
+      <section className="relative h-[500px]">
         <Image
-          src="/images/contact-banner.png"
+          src={heroImage}
           alt="Contact Us"
           fill
           className="object-cover"
           priority
         />
         <div className="absolute inset-0 flex items-center justify-center py-2.5">
-          <h1 className="inner-hero-title font-serif text-white text-center tracking-wide">
-            PROJECT GALOUR LATEST<br />PROJECTSLARY
+          <h1 className="inner-hero-title font-royal text-white text-center tracking-wide">
+            {heroTitle.split("\n").map((line, i) => (
+              <span key={i}>{line}{i < heroTitle.split("\n").length - 1 && <br />}</span>
+            ))}
           </h1>
         </div>
       </section>

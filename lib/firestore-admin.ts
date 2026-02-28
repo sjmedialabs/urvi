@@ -260,10 +260,41 @@ export interface ProjectPayload {
   description?: string;
   categoryId?: string;
   category?: string;
-  status?: "ongoing" | "upcoming" | "completed";
+  status?: string;
   price?: string;
   featured?: boolean;
   slug?: string;
+  // Extended fields
+  tagline?: string;
+  heroImage?: string;
+  priceLabel?: string;
+  reraNumber?: string;
+  possessionDate?: string;
+  about?: string;
+  projectStatusVideo?: string;
+  walkThroughVideo?: string;
+  brochureUrl?: string;
+  stats?: {
+    totalLandArea?: string;
+    noOfBlocks?: string;
+    totalUnits?: string;
+    configuration?: string;
+    floors?: string;
+    possessionStarts?: string;
+  };
+  amenities?: { name: string; image: string; galleryImages?: string[] }[];
+  floorPlans?: { name: string; image: string }[];
+  galleryImages?: string[];
+  nearbyPlaces?: {
+    hospitals?: { name: string; distance: string }[];
+    schools?: { name: string; distance: string }[];
+    itParks?: { name: string; distance: string }[];
+    connectivity?: { name: string; distance: string }[];
+  };
+  // SEO fields
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string[];
 }
 
 /** Generate URL-safe slug from title (and optional suffix for uniqueness). */
@@ -283,12 +314,16 @@ export async function adminAddProject(project: ProjectPayload): Promise<string> 
   if (!db) throw new Error("Firestore admin not configured");
   const collectionName = "projects";
   try {
-    const ref = await db.collection(collectionName).add({
+    // Firestore rejects `undefined` values; strip them before write.
+    const data = {
       ...project,
       slug: project.slug || slugify(project.title),
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
+    } as Record<string, unknown>;
+    const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+
+    const ref = await db.collection(collectionName).add(clean);
     const slug = project.slug || slugify(project.title) + "-" + ref.id.slice(0, 8);
     await ref.update({ slug, updatedAt: new Date() });
     console.info("[firestore-admin] Wrote document", collectionName, ref.id);

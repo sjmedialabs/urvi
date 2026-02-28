@@ -11,6 +11,8 @@ import { Loader2 } from "lucide-react";
 export default function BlogPage() {
   const [posts, setPosts] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [heroTitle, setHeroTitle] = useState("PROJECT GALOUR LATEST\nPROJECTSLARY");
+  const [heroImage, setHeroImage] = useState("/images/blog-banner.png");
 
   useEffect(() => {
     async function fetchPosts() {
@@ -23,7 +25,18 @@ export default function BlogPage() {
         setLoading(false);
       }
     }
+    async function fetchHero() {
+      try {
+        const res = await fetch("/api/v1/content/pages/blog");
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.data) {
+          if (json.data.heroTitle) setHeroTitle(json.data.heroTitle);
+          if (json.data.heroImage) setHeroImage(json.data.heroImage);
+        }
+      } catch {}
+    }
     fetchPosts();
+    fetchHero();
   }, []);
 
   return (
@@ -32,19 +45,19 @@ export default function BlogPage() {
       <Header />
 
       {/* Hero Banner */}
-      <section className="relative h-[280px] pt-20">
+      <section className="relative h-[500px]">
         <Image
-          src="/images/blog-banner.png"
+          src={heroImage}
           alt="Blog Banner"
           fill
           className="object-cover"
           priority
         />
         <div className="absolute inset-0 flex items-center justify-center">
-          <h1 className="inner-hero-title font-serif text-white text-center tracking-wider">
-            PROJECT GALOUR LATEST
-            <br />
-            PROJECTSLARY
+          <h1 className="inner-hero-title font-royal text-white text-center tracking-wider">
+            {heroTitle.split("\n").map((line, i) => (
+              <span key={i}>{line}{i < heroTitle.split("\n").length - 1 && <br />}</span>
+            ))}
           </h1>
         </div>
       </section>

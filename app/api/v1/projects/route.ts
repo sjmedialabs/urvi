@@ -46,7 +46,13 @@ export async function POST(request: Request) {
       );
     }
     const body = await request.json();
-    const { title, type, location, image, description, categoryId, category, status, price, featured } = body;
+    const {
+      title, type, location, image, description, categoryId, category, status, price, featured,
+      tagline, heroImage, priceLabel, reraNumber, possessionDate, about,
+      projectStatusVideo, walkThroughVideo, brochureUrl, stats,
+      amenities, floorPlans, galleryImages, nearbyPlaces,
+      metaTitle, metaDescription, metaKeywords,
+    } = body;
     if (!title || !type || !location) {
       return apiError("BAD_REQUEST", undefined, "title, type, and location are required");
     }
@@ -55,12 +61,29 @@ export async function POST(request: Request) {
       type: String(type),
       location: String(location),
       image: image ? String(image) : "",
-      description: description ? String(description) : undefined,
+      description: description != null ? String(description) : undefined,
       categoryId: categoryId ? String(categoryId) : undefined,
       category: category ? String(category) : undefined,
-      status: status ? String(status) as "ongoing" | "upcoming" | "completed" : undefined,
+      status: status ? String(status) : undefined,
       price: price ? String(price) : undefined,
       featured: Boolean(featured),
+      tagline: tagline ? String(tagline) : undefined,
+      heroImage: heroImage ? String(heroImage) : undefined,
+      priceLabel: priceLabel ? String(priceLabel) : undefined,
+      reraNumber: reraNumber ? String(reraNumber) : undefined,
+      possessionDate: possessionDate ? String(possessionDate) : undefined,
+      about: about ? String(about) : undefined,
+      projectStatusVideo: projectStatusVideo ? String(projectStatusVideo) : undefined,
+      walkThroughVideo: walkThroughVideo ? String(walkThroughVideo) : undefined,
+      brochureUrl: brochureUrl ? String(brochureUrl) : undefined,
+      stats: stats && typeof stats === "object" ? stats : undefined,
+      amenities: Array.isArray(amenities) ? amenities : undefined,
+      floorPlans: Array.isArray(floorPlans) ? floorPlans : undefined,
+      galleryImages: Array.isArray(galleryImages) ? galleryImages : undefined,
+      nearbyPlaces: nearbyPlaces && typeof nearbyPlaces === "object" ? nearbyPlaces : undefined,
+      metaTitle: metaTitle ? String(metaTitle) : undefined,
+      metaDescription: metaDescription ? String(metaDescription) : undefined,
+      metaKeywords: Array.isArray(metaKeywords) ? metaKeywords : undefined,
     });
     const verify = await adminGetProjectById(id);
     if (!verify) {

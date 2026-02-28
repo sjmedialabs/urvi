@@ -38,9 +38,10 @@ export default function NewProjectPage() {
 
   useEffect(() => {
     if (!user || typeof user.getIdToken !== "function") return;
+    const currentUser = user;
     async function fetchCategories() {
       try {
-        const token = await user.getIdToken();
+        const token = await currentUser.getIdToken();
         const res = await fetch("/api/v1/categories", {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
@@ -88,8 +89,13 @@ export default function NewProjectPage() {
     // Status
     status: "Under Construction",
     possessionDate: "",
+    // SEO
+    metaTitle: "",
+    metaDescription: "",
   });
 
+  const [metaKeywords, setMetaKeywords] = useState<string[]>([]);
+  const [keywordInput, setKeywordInput] = useState("");
   const [amenities, setAmenities] = useState<{ name: string; image: string; galleryImages: string[] }[]>([]);
   const [floorPlans, setFloorPlans] = useState<{ name: string; image: string }[]>([]);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
@@ -138,9 +144,26 @@ export default function NewProjectPage() {
           description: formData.description,
           categoryId: formData.categoryId,
           category: formData.category,
-          status: formData.status === "Under Construction" ? "ongoing" : formData.status === "Upcoming" ? "upcoming" : formData.status === "Completed" ? "completed" : "ongoing",
+          status: formData.status,
           price: formData.price,
           featured: formData.featured,
+          tagline: formData.tagline,
+          heroImage: formData.heroImage,
+          priceLabel: formData.priceLabel,
+          reraNumber: formData.reraNumber,
+          possessionDate: formData.possessionDate,
+          about: formData.about,
+          projectStatusVideo: formData.projectStatusVideo,
+          walkThroughVideo: formData.walkThroughVideo,
+          brochureUrl: formData.brochureUrl,
+          stats: formData.stats,
+          amenities,
+          floorPlans,
+          galleryImages,
+          nearbyPlaces,
+          metaTitle: formData.metaTitle,
+          metaDescription: formData.metaDescription,
+          metaKeywords,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -607,6 +630,78 @@ export default function NewProjectPage() {
                 onChange={(e) => setFormData({ ...formData, brochureUrl: e.target.value })}
                 placeholder="https://..."
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SEO */}
+        <Card>
+          <CardHeader>
+            <CardTitle>SEO Settings</CardTitle>
+            <CardDescription>Search engine optimization for this property page</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="metaTitle">Meta Title</Label>
+              <Input
+                id="metaTitle"
+                value={formData.metaTitle}
+                onChange={(e) => setFormData({ ...formData, metaTitle: e.target.value })}
+                placeholder="Page title for search engines"
+              />
+              <p className="text-xs text-muted-foreground">{formData.metaTitle.length}/60 characters</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="metaDescription">Meta Description</Label>
+              <Textarea
+                id="metaDescription"
+                value={formData.metaDescription}
+                onChange={(e) => setFormData({ ...formData, metaDescription: e.target.value })}
+                placeholder="Brief description for search results"
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">{formData.metaDescription.length}/160 characters</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Meta Keywords</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={keywordInput}
+                  onChange={(e) => setKeywordInput(e.target.value)}
+                  placeholder="Add a keyword"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const kw = keywordInput.trim();
+                      if (kw && !metaKeywords.includes(kw)) setMetaKeywords([...metaKeywords, kw]);
+                      setKeywordInput("");
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const kw = keywordInput.trim();
+                    if (kw && !metaKeywords.includes(kw)) setMetaKeywords([...metaKeywords, kw]);
+                    setKeywordInput("");
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              {metaKeywords.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {metaKeywords.map((kw) => (
+                    <span key={kw} className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded text-sm">
+                      {kw}
+                      <button onClick={() => setMetaKeywords(metaKeywords.filter((k) => k !== kw))} className="hover:text-red-500">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

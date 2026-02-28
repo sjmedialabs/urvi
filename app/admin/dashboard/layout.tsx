@@ -42,15 +42,32 @@ interface MenuItem {
   children?: { label: string; href: string }[];
 }
 
+const DEFAULT_CATEGORY_PAGES = [
+  { label: "Apartments", slug: "apartments" },
+  { label: "Villas", slug: "villas" },
+  { label: "Commercial", slug: "commercial" },
+  { label: "Plots", slug: "plots" },
+];
+
 function buildMenuItems(categories: SidebarCategory[]): MenuItem[] {
+  // Merge fetched categories with defaults so the 4 core pages always appear
+  const slugsSeen = new Set(categories.map((c) => c.slug));
+  const categoryEntries = [
+    ...categories.map((c) => ({ label: c.name, href: `/admin/dashboard/cms/${c.slug}` })),
+    ...DEFAULT_CATEGORY_PAGES.filter((d) => !slugsSeen.has(d.slug)).map((d) => ({
+      label: d.label,
+      href: `/admin/dashboard/cms/${d.slug}`,
+    })),
+  ];
+
   const pageChildren = [
     { label: "Home", href: "/admin/dashboard/cms/home" },
     { label: "About", href: "/admin/dashboard/cms/about" },
-    ...categories.map((c) => ({
-      label: c.name,
-      href: `/admin/dashboard/cms/${c.slug}`,
-    })),
+    ...categoryEntries,
+    { label: "Gallery", href: "/admin/dashboard/gallery" },
+    { label: "Blog", href: "/admin/dashboard/blog" },
     { label: "Contact", href: "/admin/dashboard/cms/contact" },
+    { label: "Testimonials", href: "/admin/dashboard/testimonials" },
   ];
 
   return [
@@ -59,10 +76,6 @@ function buildMenuItems(categories: SidebarCategory[]): MenuItem[] {
     { icon: Users, label: "Leads (CRM)", href: "/admin/dashboard/leads" },
     { icon: FolderOpen, label: "Projects", href: "/admin/dashboard/projects" },
     { icon: Tags, label: "Categories", href: "/admin/dashboard/categories" },
-    { icon: ImageIcon, label: "Media Library", href: "/admin/dashboard/gallery" },
-    { icon: Newspaper, label: "Blog", href: "/admin/dashboard/blog" },
-    { icon: MessageSquare, label: "Testimonials", href: "/admin/dashboard/testimonials" },
-    { icon: FormInput, label: "Forms", href: "/admin/dashboard/forms" },
     { icon: Search, label: "SEO Manager", href: "/admin/dashboard/seo" },
     { icon: BarChart3, label: "Analytics", href: "/admin/dashboard/analytics" },
     { icon: Settings, label: "Settings", href: "/admin/dashboard/settings" },

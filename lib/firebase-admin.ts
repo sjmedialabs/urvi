@@ -9,7 +9,7 @@ import type { DecodedIdToken } from "firebase-admin/auth";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let adminApp: any = null;
 
-function getAdminApp() {
+export function getAdminApp() {
   if (adminApp) return adminApp;
   const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();

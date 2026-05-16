@@ -6,7 +6,7 @@ import type { NextRequest } from "next/server";
  * Redirect unauthenticated users to login when no session cookie hint is present.
  * Full verification happens in dashboard layout via Firebase onAuthStateChanged.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/admin/dashboard")) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import { SafeImage } from "@/components/safe-image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
@@ -99,8 +99,8 @@ export function NewsSection() {
               >
                 {/* Image */}
                 <div className="aspect-[4/3] overflow-hidden relative img-hover-zoom">
-                  <Image
-                    src={article.image || "/placeholder.svg"}
+                  <SafeImage
+                    src={article.image}
                     alt={article.title}
                     fill
                     className="object-cover transition-transform duration-500"

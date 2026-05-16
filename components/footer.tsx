@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Facebook, Linkedin, Youtube } from "lucide-react";
 import { Reveal } from "@/components/motion/reveal";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import type { ContactInfo } from "@/lib/firestore";
+import { BrandingLogo } from "@/components/branding-logo";
+import { useBranding } from "@/hooks/use-branding";
 
 const quickLinks = [
   { href: "/", label: "Home" },
@@ -39,6 +40,7 @@ function SocialIcon({ href, label, children }: { href: string; label: string; ch
 }
 
 export function Footer() {
+  const { branding } = useBranding();
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
 
   useEffect(() => {
@@ -66,12 +68,11 @@ export function Footer() {
           <Stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
             <StaggerItem>
               <Link href="/">
-                <Image
-                  src="/icon.svg"
-                  alt="Urvi Constructions"
+                <BrandingLogo
+                  variant="footer"
                   width={56}
                   height={56}
-                  className="mb-8"
+                  className="mb-8 h-14 w-auto"
                 />
               </Link>
 
@@ -144,7 +145,7 @@ export function Footer() {
 
       <div className="bg-[#2D3748] py-4">
         <div className="max-w-[1200px] mx-auto px-4">
-          <p className="text-center text-sm text-white">© {new Date().getFullYear()} Urvi Constructions — All rights reserved</p>
+          <p className="text-center text-sm text-white">© {new Date().getFullYear()} {branding.siteName} — All rights reserved</p>
         </div>
       </div>
     </footer>

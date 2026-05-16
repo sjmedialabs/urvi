@@ -4,18 +4,19 @@ import React from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
-import { 
-  getHeroSlides, addHeroSlide, updateHeroSlide, deleteHeroSlide,
+import { adminApiFetch } from "@/lib/admin-api";
+import { fetchHeroSlidesPublic } from "@/lib/hero-slides";
+import {
   getProjects, getTestimonials, getArticles,
   type HeroSlide, type Project, type Testimonial, type Article
 } from "@/lib/firestore";
+import { AdminPreviewImage } from "@/components/admin/admin-preview-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Loader2, Plus, Pencil, Trash2, ImageIcon, 
@@ -23,6 +24,8 @@ import {
   Newspaper, Building, ArrowRight, Video
 } from "lucide-react";
 import { ImageUpload } from "@/components/admin/image-upload";
+import { HomeAboutEditor } from "@/components/admin/home-about-editor";
+import { HomeVideoEditor } from "@/components/admin/home-video-editor";
 
 const HEADLINE_MAX = 80;
 const SUBHEADLINE_MAX = 120;
@@ -61,7 +64,7 @@ export default function CMSHomePage() {
     async function fetchData() {
       try {
         const [slidesData, projectsData, testimonialsData, articlesData] = await Promise.all([
-          getHeroSlides(),
+          fetchHeroSlidesPublic(),
           getProjects(),
           getTestimonials(),
           getArticles(),
@@ -82,33 +85,61 @@ export default function CMSHomePage() {
     }
   }, [user]);
 
+  const canSaveSlide =
+    slideForm.headline.trim().length > 0 && slideForm.backgroundImage.trim().length > 0;
+
   const handleSaveSlide = async () => {
+    if (!user) return;
+    if (!canSaveSlide) {
+      alert("Please add a headline and background image before saving.");
+      return;
+    }
     setSavingSlide(true);
     try {
       if (editingSlide?.id) {
-        await updateHeroSlide(editingSlide.id, slideForm);
-        setHeroSlides(heroSlides.map(s => s.id === editingSlide.id ? { ...s, ...slideForm } : s));
+        const res = await adminApiFetch(user, `/api/v1/content/hero/slides/${editingSlide.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            ...slideForm,
+            order: slideForm.order || editingSlide.order,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error ?? `Save failed (${res.status})`);
+        setHeroSlides(heroSlides.map((s) => (s.id === editingSlide.id ? { ...s, ...slideForm } : s)));
       } else {
-        const newOrder = heroSlides.length > 0 ? Math.max(...heroSlides.map(s => s.order)) + 1 : 1;
-        const id = await addHeroSlide({ ...slideForm, order: newOrder });
+        const newOrder = heroSlides.length > 0 ? Math.max(...heroSlides.map((s) => s.order)) + 1 : 1;
+        const res = await adminApiFetch(user, "/api/v1/content/hero/slides", {
+          method: "POST",
+          body: JSON.stringify({ ...slideForm, order: newOrder }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error ?? `Save failed (${res.status})`);
+        const id = String(json?.data?.id ?? "");
         setHeroSlides([...heroSlides, { id, ...slideForm, order: newOrder }]);
       }
+      const slidesData = await fetchHeroSlidesPublic();
+      setHeroSlides(slidesData);
       setShowSlideModal(false);
       resetSlideForm();
     } catch (error) {
       console.error("Error saving slide:", error);
+      alert(error instanceof Error ? error.message : "Error saving slide.");
     } finally {
       setSavingSlide(false);
     }
   };
 
   const handleDeleteSlide = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this slide?")) return;
+    if (!user || !confirm("Are you sure you want to delete this slide?")) return;
     try {
-      await deleteHeroSlide(id);
-      setHeroSlides(heroSlides.filter(s => s.id !== id));
+      const res = await adminApiFetch(user, `/api/v1/content/hero/slides/${id}`, { method: "DELETE" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error ?? `Delete failed (${res.status})`);
+      setHeroSlides(heroSlides.filter((s) => s.id !== id));
     } catch (error) {
       console.error("Error deleting slide:", error);
+      alert(error instanceof Error ? error.message : "Error deleting slide.");
     }
   };
 
@@ -124,13 +155,33 @@ export default function CMSHomePage() {
     
     setHeroSlides([...sortedSlides]);
     
+    if (!user) return;
+
+    const putSlide = (slide: HeroSlide) =>
+      adminApiFetch(user, `/api/v1/content/hero/slides/${slide.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          headline: slide.headline,
+          subheadline: slide.subheadline,
+          backgroundImage: slide.backgroundImage,
+          order: slide.order,
+        }),
+      });
+
     try {
-      await Promise.all([
-        updateHeroSlide(sortedSlides[index].id!, { order: sortedSlides[index].order }),
-        updateHeroSlide(sortedSlides[newIndex].id!, { order: sortedSlides[newIndex].order }),
+      const [resA, resB] = await Promise.all([
+        putSlide(sortedSlides[index]),
+        putSlide(sortedSlides[newIndex]),
       ]);
+      if (!resA.ok || !resB.ok) {
+        const errA = await resA.json().catch(() => ({}));
+        const errB = await resB.json().catch(() => ({}));
+        throw new Error(errA?.error ?? errB?.error ?? "Reorder failed");
+      }
     } catch (error) {
       console.error("Error reordering slides:", error);
+      alert(error instanceof Error ? error.message : "Error reordering slides.");
+      fetchHeroSlidesPublic().then(setHeroSlides).catch(() => {});
     }
   };
 
@@ -244,8 +295,8 @@ export default function CMSHomePage() {
                         </Button>
                       </div>
                       <div className="w-32 h-20 relative rounded overflow-hidden flex-shrink-0">
-                        <Image
-                          src={slide.backgroundImage || "/placeholder.svg"}
+                        <AdminPreviewImage
+                          src={slide.backgroundImage}
                           alt={slide.headline}
                           fill
                           className="object-cover"
@@ -278,25 +329,7 @@ export default function CMSHomePage() {
 
         {/* About Section Tab */}
         <TabsContent value="about">
-          <Card>
-            <CardHeader>
-              <CardTitle>About Section</CardTitle>
-              <CardDescription>This section uses content from the About page</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Building className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4">
-                  The About section on the homepage displays a summary from your About page content.
-                </p>
-                <Button asChild variant="outline">
-                  <Link href="/admin/dashboard/cms/about">
-                    Edit About Page <ArrowRight size={16} className="ml-2" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <HomeAboutEditor />
         </TabsContent>
 
         {/* Projects Tab */}
@@ -333,8 +366,8 @@ export default function CMSHomePage() {
                   {projects.slice(0, 6).map((project) => (
                     <div key={project.id} className="border rounded-lg overflow-hidden">
                       <div className="h-32 relative">
-                        <Image
-                          src={project.image || "/placeholder.svg"}
+                        <AdminPreviewImage
+                          src={project.image}
                           alt={project.title}
                           fill
                           className="object-cover"
@@ -354,25 +387,7 @@ export default function CMSHomePage() {
 
         {/* Video Section Tab */}
         <TabsContent value="video">
-          <Card>
-            <CardHeader>
-              <CardTitle>Video Section</CardTitle>
-              <CardDescription>Manage the promotional video on homepage</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4">
-                  Edit video URL, poster image, and headline (page slug: home-video).
-                </p>
-                <Button asChild variant="outline">
-                  <Link href="/admin/dashboard/cms/home-video">
-                    Edit Video Section <ArrowRight size={16} className="ml-2" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <HomeVideoEditor />
         </TabsContent>
 
         {/* Testimonials Tab */}
@@ -413,7 +428,7 @@ export default function CMSHomePage() {
                         <div className="w-10 h-10 rounded-full bg-secondary" />
                         <div>
                           <p className="font-semibold text-[#1F2A54] text-sm">{testimonial.name}</p>
-                          <p className="text-xs text-muted-foreground">{testimonial.designation}</p>
+                          <p className="text-xs text-muted-foreground">{testimonial.role}</p>
                         </div>
                       </div>
                     </div>
@@ -458,8 +473,8 @@ export default function CMSHomePage() {
                   {articles.slice(0, 4).map((article) => (
                     <div key={article.id} className="border rounded-lg overflow-hidden">
                       <div className="h-32 relative">
-                        <Image
-                          src={article.image || "/placeholder.svg"}
+                        <AdminPreviewImage
+                          src={article.image}
                           alt={article.title}
                           fill
                           className="object-cover"
@@ -479,20 +494,23 @@ export default function CMSHomePage() {
       </Tabs>
 
       {/* Add/Edit Slide Modal */}
-      <Dialog open={showSlideModal} onOpenChange={setShowSlideModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+      <Dialog
+        open={showSlideModal}
+        onOpenChange={(open) => {
+          setShowSlideModal(open);
+          if (!open) resetSlideForm();
+        }}
+      >
+        <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+          <DialogHeader className="border-b px-6 py-4">
             <DialogTitle>{editingSlide ? "Edit Slide" : "Add New Slide"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-5">
+          <div className="flex-1 space-y-5 overflow-y-auto px-6 py-4">
             {/* Background Image Upload */}
             <div>
               <label className="text-sm font-medium">
                 Background Image <span className="text-red-500">*</span>
               </label>
-              <p className="text-xs text-muted-foreground mb-2">
-                JPEG, PNG, or WebP — max 5MB
-              </p>
               <ImageUpload
                 value={slideForm.backgroundImage}
                 onChange={(url) => setSlideForm({ ...slideForm, backgroundImage: url })}
@@ -549,8 +567,8 @@ export default function CMSHomePage() {
             {/* Live Preview */}
             {slideForm.backgroundImage && (
               <div className="relative h-40 rounded-lg overflow-hidden border">
-                <Image
-                  src={slideForm.backgroundImage || "/placeholder.svg"}
+                <AdminPreviewImage
+                  src={slideForm.backgroundImage}
                   alt="Preview"
                   fill
                   className="object-cover"
@@ -569,21 +587,32 @@ export default function CMSHomePage() {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button variant="outline" className="bg-transparent" onClick={() => setShowSlideModal(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSaveSlide}
-                disabled={savingSlide || !slideForm.headline || !slideForm.backgroundImage}
-                className="bg-[#1F2A54] hover:bg-[#1F2A54]/90"
-              >
-                {savingSlide ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                {editingSlide ? "Update Slide" : "Add Slide"}
-              </Button>
-            </div>
+            {!canSaveSlide && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                Add a headline and background image to enable save.
+              </p>
+            )}
           </div>
+
+          <DialogFooter className="shrink-0 border-t bg-background px-6 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="bg-transparent"
+              onClick={() => setShowSlideModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveSlide}
+              disabled={savingSlide}
+              className="bg-[#1F2A54] hover:bg-[#1F2A54]/90"
+            >
+              {savingSlide ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {editingSlide ? "Update Slide" : "Add Slide"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

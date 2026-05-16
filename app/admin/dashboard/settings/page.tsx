@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { adminApiFetch } from "@/lib/admin-api";
+import { DEFAULT_BRANDING, mergeBranding, type Branding } from "@/lib/branding";
+import { ImageUpload } from "@/components/admin/image-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +17,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
+  const [contactData, setContactData] = useState({
     address: "123 Frontage Rd., Any City, 12345 Any State",
     phone: "123-456-7890",
     email: "support@urvi.com",
@@ -23,6 +26,7 @@ export default function SettingsPage() {
     linkedin: "",
     youtube: "",
   });
+  const [brandingData, setBrandingData] = useState<Branding>({ ...DEFAULT_BRANDING });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -32,17 +36,22 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (user) {
-      loadContactInfo();
+      loadSettings();
     }
   }, [user]);
 
-  const loadContactInfo = async () => {
+  const loadSettings = async () => {
     try {
-      const res = await fetch("/api/v1/content/contact");
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && json?.data) {
-        const data = json.data;
-        setFormData({
+      const [contactRes, brandingRes] = await Promise.all([
+        fetch("/api/v1/content/contact"),
+        fetch("/api/v1/content/branding"),
+      ]);
+      const contactJson = await contactRes.json().catch(() => ({}));
+      const brandingJson = await brandingRes.json().catch(() => ({}));
+
+      if (contactRes.ok && contactJson?.data) {
+        const data = contactJson.data;
+        setContactData({
           address: data.address || "123 Frontage Rd., Any City, 12345 Any State",
           phone: data.phone || "123-456-7890",
           email: data.email || "support@urvi.com",
@@ -52,35 +61,49 @@ export default function SettingsPage() {
           youtube: data.socialLinks?.youtube || "",
         });
       }
+
+      if (brandingRes.ok && brandingJson?.data) {
+        setBrandingData(mergeBranding(brandingJson.data));
+      }
     } catch (error) {
-      console.error("Error loading contact info:", error);
+      console.error("Error loading settings:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!user?.getIdToken) return;
+    if (!user) return;
     setSaving(true);
     try {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/v1/content/contact", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          address: formData.address,
-          phone: formData.phone,
-          email: formData.email,
-          socialLinks: {
-            facebook: formData.facebook,
-            twitter: formData.twitter,
-            linkedin: formData.linkedin,
-            youtube: formData.youtube,
-          },
+      const [contactRes, brandingRes] = await Promise.all([
+        adminApiFetch(user, "/api/v1/content/contact", {
+          method: "PUT",
+          body: JSON.stringify({
+            address: contactData.address,
+            phone: contactData.phone,
+            email: contactData.email,
+            socialLinks: {
+              facebook: contactData.facebook,
+              twitter: contactData.twitter,
+              linkedin: contactData.linkedin,
+              youtube: contactData.youtube,
+            },
+          }),
         }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error ?? `Save failed (${res.status})`);
+        adminApiFetch(user, "/api/v1/content/branding", {
+          method: "PUT",
+          body: JSON.stringify(brandingData),
+        }),
+      ]);
+
+      const contactJson = await contactRes.json().catch(() => ({}));
+      const brandingJson = await brandingRes.json().catch(() => ({}));
+
+      if (!contactRes.ok) throw new Error(contactJson?.error ?? `Contact save failed (${contactRes.status})`);
+      if (!brandingRes.ok) throw new Error(brandingJson?.error ?? `Branding save failed (${brandingRes.status})`);
+
+      if (brandingJson?.data) setBrandingData(mergeBranding(brandingJson.data));
       alert("Settings saved successfully!");
     } catch (error) {
       console.error("Error saving settings:", error);
@@ -129,89 +152,155 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-2xl grid gap-6">
-          {/* Contact Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-              <CardDescription>Update your business contact details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="123 Main St, City, State 12345"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="123-456-7890"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="contact@company.com"
-                />
-              </div>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Branding</CardTitle>
+            <CardDescription>
+              Logo and favicon shown on the public website header, footer, and browser tab
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="siteName">Site name</Label>
+              <Input
+                id="siteName"
+                value={brandingData.siteName}
+                onChange={(e) => setBrandingData({ ...brandingData, siteName: e.target.value })}
+                placeholder="Urvi Constructions"
+              />
+            </div>
 
-          {/* Social Media Links */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Social Media Links</CardTitle>
-              <CardDescription>Connect your social media profiles</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="facebook">Facebook URL</Label>
-                <Input
-                  id="facebook"
-                  value={formData.facebook}
-                  onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
-                  placeholder="https://facebook.com/yourpage"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="twitter">Twitter URL</Label>
-                <Input
-                  id="twitter"
-                  value={formData.twitter}
-                  onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
-                  placeholder="https://twitter.com/yourhandle"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="linkedin">LinkedIn URL</Label>
-                <Input
-                  id="linkedin"
-                  value={formData.linkedin}
-                  onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
-                  placeholder="https://linkedin.com/company/yourcompany"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="youtube">YouTube URL</Label>
-                <Input
-                  id="youtube"
-                  value={formData.youtube}
-                  onChange={(e) => setFormData({ ...formData, youtube: e.target.value })}
-                  placeholder="https://youtube.com/@yourchannel"
-                />
-              </div>
-            </CardContent>
-          </Card>
+            <div className="space-y-2">
+              <Label>Header logo</Label>
+              <p className="text-xs text-muted-foreground">
+                Shown in the site navigation. PNG, SVG, or WebP recommended.
+              </p>
+              <ImageUpload
+                value={brandingData.logoHeader}
+                onChange={(url) => setBrandingData({ ...brandingData, logoHeader: url })}
+                folder="branding"
+                aspectRatio="banner"
+                preset="logo"
+                objectFit="contain"
+                placeholder="Upload header logo"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Footer logo</Label>
+              <p className="text-xs text-muted-foreground">
+                Shown in the site footer.
+              </p>
+              <ImageUpload
+                value={brandingData.logoFooter}
+                onChange={(url) => setBrandingData({ ...brandingData, logoFooter: url })}
+                folder="branding"
+                aspectRatio="square"
+                preset="logo"
+                objectFit="contain"
+                placeholder="Upload footer logo"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Favicon</Label>
+              <p className="text-xs text-muted-foreground">
+                Browser tab icon. Square PNG or SVG, up to 512×512px.
+              </p>
+              <ImageUpload
+                value={brandingData.favicon}
+                onChange={(url) => setBrandingData({ ...brandingData, favicon: url })}
+                folder="branding"
+                aspectRatio="square"
+                preset="favicon"
+                objectFit="contain"
+                placeholder="Upload favicon"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Contact Information</CardTitle>
+            <CardDescription>Update your business contact details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={contactData.address}
+                onChange={(e) => setContactData({ ...contactData, address: e.target.value })}
+                placeholder="123 Main St, City, State 12345"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                value={contactData.phone}
+                onChange={(e) => setContactData({ ...contactData, phone: e.target.value })}
+                placeholder="123-456-7890"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={contactData.email}
+                onChange={(e) => setContactData({ ...contactData, email: e.target.value })}
+                placeholder="contact@company.com"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Social Media Links</CardTitle>
+            <CardDescription>Connect your social media profiles</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="facebook">Facebook URL</Label>
+              <Input
+                id="facebook"
+                value={contactData.facebook}
+                onChange={(e) => setContactData({ ...contactData, facebook: e.target.value })}
+                placeholder="https://facebook.com/yourpage"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="twitter">Twitter URL</Label>
+              <Input
+                id="twitter"
+                value={contactData.twitter}
+                onChange={(e) => setContactData({ ...contactData, twitter: e.target.value })}
+                placeholder="https://twitter.com/yourhandle"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="linkedin">LinkedIn URL</Label>
+              <Input
+                id="linkedin"
+                value={contactData.linkedin}
+                onChange={(e) => setContactData({ ...contactData, linkedin: e.target.value })}
+                placeholder="https://linkedin.com/company/yourcompany"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="youtube">YouTube URL</Label>
+              <Input
+                id="youtube"
+                value={contactData.youtube}
+                onChange={(e) => setContactData({ ...contactData, youtube: e.target.value })}
+                placeholder="https://youtube.com/@yourchannel"
+              />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

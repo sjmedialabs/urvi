@@ -181,18 +181,14 @@ export default function BlogDetailPage() {
       </header>
 
       {/* Banner Image - Full Width */}
-      <section className="relative w-full">
-        <div className="max-w-[900px] mx-auto px-4 pt-8">
-          <div className="relative w-full h-[300px] md:h-[400px] rounded-lg overflow-hidden">
-            <Image
-              src={post.image || "/images/blog-details-banner.png"}
-              alt={post.title}
-              fill
-              className="object-cover"
-              priority
-            />
-          </div>
-        </div>
+      <section className="relative h-[300px] w-full overflow-hidden">
+        <Image
+          src={post.image || "/images/blog-details-banner.png"}
+          alt={post.title}
+          fill
+          className="object-cover object-center"
+          priority
+        />
       </section>
 
       {/* Blog Content */}

@@ -650,8 +650,9 @@ a, button, [role="button"], input[type="submit"], input[type="button"], .cursor-
 
 /* ===== INNER PAGE HERO TITLE ===== */
 .inner-hero-title {
-  margin-top: 5em;
-  font-size: 35px;
+  margin-top: 0;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  line-height: 1.2;
 }
 
 /* ===== HERO ANIMATIONS ===== */

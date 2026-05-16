@@ -27,7 +27,8 @@ import {
   Globe,
   Tags,
 } from "lucide-react";
-import Image from "next/image";
+import { useBranding } from "@/hooks/use-branding";
+import { isValidImageUrl } from "@/lib/media";
 
 interface SidebarCategory {
   id: string;
@@ -93,6 +94,7 @@ export default function AdminDashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(["Pages"]);
   const [categories, setCategories] = useState<SidebarCategory[]>([]);
+  const { branding } = useBranding();
 
   // Fetch categories via API (uses Admin SDK server-side) to avoid Firestore client permission errors
   useEffect(() => {
@@ -177,8 +179,19 @@ export default function AdminDashboardLayout({
         {/* Header - Fixed */}
         <div className="flex-shrink-0 p-4 border-b border-white/10">
           <div className="flex items-center justify-between">
-            <Link href="/admin/dashboard">
-              <Image src="/images/urvi-logo-footer.png" alt="Urvi Constructions" width={100} height={40} className="h-10 w-auto brightness-0 invert" />
+            <Link href="/admin/dashboard" className="block max-w-[140px]">
+              {isValidImageUrl(branding.logoFooter) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={branding.logoFooter}
+                  alt={branding.siteName}
+                  className="h-10 w-auto max-w-[140px] object-contain brightness-0 invert"
+                />
+              ) : (
+                <span className="text-sm font-semibold leading-tight text-white">
+                  {branding.siteName}
+                </span>
+              )}
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}

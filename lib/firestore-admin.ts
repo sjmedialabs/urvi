@@ -470,6 +470,36 @@ export async function adminGetPropertyAmenities(propertyId: string): Promise<Rec
   }
 }
 
+/** Create a hero slide document. */
+export async function adminCreateHeroSlide(
+  data: Record<string, unknown>
+): Promise<string> {
+  const db = getAdminDb();
+  if (!db) throw new Error("Firestore admin not configured");
+  const now = new Date();
+  const ref = await db.collection("heroSlides").add({
+    ...data,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return ref.id;
+}
+
+/** Update a hero slide document. */
+export async function adminUpdateHeroSlide(
+  id: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  await adminSetDocument("heroSlides", id, data);
+}
+
+/** Delete a hero slide document. */
+export async function adminDeleteHeroSlide(id: string): Promise<void> {
+  const db = getAdminDb();
+  if (!db) throw new Error("Firestore admin not configured");
+  await db.collection("heroSlides").doc(id).delete();
+}
+
 /** Hero carousel slides (collection heroSlides, sorted by order). */
 export async function adminGetHeroSlides(): Promise<Record<string, unknown>[]> {
   const db = getAdminDb();

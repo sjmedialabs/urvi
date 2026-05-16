@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,13 +29,15 @@ export function TestimonialsSection() {
         const res = await fetch("/api/v1/testimonials/public");
         const json = await res.json().catch(() => ({}));
         const list = Array.isArray(json?.data) ? json.data : [];
-        const mapped: TestimonialDisplay[] = list.map((t: Record<string, unknown>) => ({
-          id: String(t?.id ?? Math.random()),
-          name: String(t?.name ?? ""),
-          role: String(t?.role ?? ""),
-          image: String(t?.image ?? ""),
-          text: String(t?.content ?? ""),
-        }));
+        const mapped: TestimonialDisplay[] = list
+          .map((t: Record<string, unknown>) => ({
+            id: String(t?.id ?? ""),
+            name: String(t?.name ?? "").trim(),
+            role: String(t?.role ?? "").trim(),
+            image: String(t?.image ?? "").trim(),
+            text: String(t?.content ?? "").trim(),
+          }))
+          .filter((t) => t.id && t.name && t.text);
         setTestimonials(mapped);
       } catch (error) {
         console.error("Error fetching testimonials:", error);
@@ -163,9 +164,9 @@ export function TestimonialsSection() {
                   </div>
 
                   {/* Quote Icon */}
-                  <motionless className="absolute top-6 right-8 text-[#DDA21A]/40">
+                  <div className="absolute top-6 right-8 text-[#DDA21A]/40">
                     <Quote className="w-8 h-8" aria-hidden />
-                  </motionless>
+                  </div>
                   
                   {/* Author Info */}
                   <div className="mb-4">

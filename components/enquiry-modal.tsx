@@ -3,7 +3,7 @@
 import React from "react"
 
 import { useState } from "react";
-import Image from "next/image";
+import { BrandingLogo } from "@/components/branding-logo";
 import { X } from "lucide-react";
 
 interface EnquiryModalProps {
@@ -133,9 +133,8 @@ export function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
 
         {/* Logo */}
         <div className="flex justify-center mb-4">
-          <Image
-            src="/images/urvi-logo.png"
-            alt="Urvi Constructions"
+          <BrandingLogo
+            variant="header"
             width={80}
             height={40}
             className="h-10 w-auto"

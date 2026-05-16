@@ -91,7 +91,7 @@ export function WhyUsSection() {
                       <div className="flex-shrink-0 w-[84px] h-[84px] bg-[#1F2A54] rounded-full flex items-center justify-center p-5">
                         {isValidImageUrl(feature.icon) && (
                           <Image
-                            src={getSafeImageSrc(feature.icon)}
+                            src={getSafeImageSrc(feature.icon)!}
                             alt={feature.title || ""}
                             width={44}
                             height={44}
@@ -123,7 +123,7 @@ export function WhyUsSection() {
                   transition={{ type: "spring", stiffness: 300, damping: 22 }}
                 >
                   <Image
-                    src={getSafeImageSrc(content.image)}
+                    src={getSafeImageSrc(content.image)!}
                     alt={content.title || "Why Urvi Constructions"}
                     fill
                     className="object-contain object-right"

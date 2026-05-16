@@ -161,7 +161,6 @@ export function HeroSection() {
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-[#1F2A54] to-[#3d4f8f]" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/50" />
                 </div>
               </motion.div>
             )

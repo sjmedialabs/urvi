@@ -4,17 +4,29 @@ import { useState, useRef, useEffect } from "react";
 import { Play, Pause } from "lucide-react";
 import { motion } from "framer-motion";
 import { isValidImageUrl } from "@/lib/media";
+import {
+  hasHomeVideoContent,
+  normalizeHomeVideoContent,
+  type HomeVideoContent,
+} from "@/lib/home-video";
 import { Reveal } from "@/components/motion/reveal";
 import { Magnetic } from "@/components/motion/magnetic";
 
-type VideoContent = {
-  title?: string;
-  videoUrl?: string;
-  posterImage?: string;
-};
+function isValidVideoUrl(url: string | null | undefined): boolean {
+  if (!url || typeof url !== "string") return false;
+  const t = url.trim();
+  if (!t) return false;
+  return (
+    t.startsWith("http://") ||
+    t.startsWith("https://") ||
+    t.startsWith("/") ||
+    t.startsWith("blob:") ||
+    t.startsWith("data:video/")
+  );
+}
 
 export function VideoSection() {
-  const [content, setContent] = useState<VideoContent | null>(null);
+  const [content, setContent] = useState<HomeVideoContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -25,9 +37,14 @@ export function VideoSection() {
       try {
         const res = await fetch("/api/v1/content/pages/home-video", { cache: "no-store" });
         const json = await res.json().catch(() => ({}));
-        if (res.ok && json?.data) setContent(json.data as VideoContent);
+        if (res.ok && json?.data) {
+          setContent(normalizeHomeVideoContent(json.data));
+        } else {
+          setContent(normalizeHomeVideoContent(null));
+        }
       } catch (e) {
         console.error("Video section load error:", e);
+        setContent(normalizeHomeVideoContent(null));
       } finally {
         setLoading(false);
       }
@@ -51,8 +68,11 @@ export function VideoSection() {
     return () => observer.disconnect();
   }, [isPlaying]);
 
-  const videoUrl = content?.videoUrl?.trim();
-  const hasVideo = Boolean(videoUrl);
+  const normalized = content ?? normalizeHomeVideoContent(null);
+  const videoUrl = normalized.videoUrl.trim();
+  const hasVideo = isValidVideoUrl(videoUrl);
+  const hasPoster = isValidImageUrl(normalized.posterImage);
+  const showSection = hasHomeVideoContent(normalized);
 
   if (loading) {
     return (
@@ -66,43 +86,48 @@ export function VideoSection() {
     );
   }
 
-  if (!hasVideo && !content?.title && !isValidImageUrl(content?.posterImage)) {
+  if (!showSection) {
     return null;
   }
 
-  const handlePlayClick = () => {
+  const handlePlayPause = () => {
     if (!videoRef.current || !hasVideo) return;
     if (isPlaying) {
       videoRef.current.pause();
       setIsPlaying(false);
     } else {
-      videoRef.current.play();
+      void videoRef.current.play();
       setIsPlaying(true);
     }
   };
 
-  const posterStyle = isValidImageUrl(content?.posterImage)
-    ? { backgroundImage: `url('${content!.posterImage}')`, backgroundColor: "#1e3a5f" }
+  const posterStyle = hasPoster
+    ? {
+        backgroundImage: `url('${normalized.posterImage}')`,
+        backgroundColor: "#1e3a5f",
+      }
     : { backgroundColor: "#1e3a5f" };
 
   return (
     <section ref={sectionRef} className="relative h-[500px] md:h-[600px] overflow-hidden">
+      {/* Poster / background */}
       <motion.div
-        className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${
-          isPlaying ? "opacity-0" : "opacity-100"
+        className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-500 ${
+          isPlaying && hasVideo ? "opacity-0" : "opacity-100"
         }`}
         style={posterStyle}
-        initial={{ scale: 1.1 }}
+        initial={{ scale: 1.05 }}
         whileInView={{ scale: 1 }}
         viewport={{ once: true }}
-        transition={{ duration: 1.4 }}
+        transition={{ duration: 1.2 }}
       />
 
+      {/* Inline video (same section, no modal) */}
       {hasVideo && (
         <video
           ref={videoRef}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
-            isPlaying ? "opacity-100" : "opacity-0"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+            isPlaying ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
           src={videoUrl}
           playsInline
@@ -112,21 +137,29 @@ export function VideoSection() {
         />
       )}
 
+      {/* Dark overlay for text legibility when paused */}
       <motion.div
-        className={`relative z-10 h-full flex flex-col items-center justify-center text-center px-4 ${
+        className={`absolute inset-0 bg-black/30 transition-opacity duration-300 ${
           isPlaying ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
-        initial={{ opacity: 0, y: 30 }}
+      />
+
+      {/* Play / pause + headline */}
+      <motion.div
+        className={`relative z-10 flex h-full flex-col items-center justify-center px-4 text-center ${
+          isPlaying ? "pointer-events-none opacity-0" : "opacity-100"
+        }`}
+        initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.8 }}
+        transition={{ duration: 0.7 }}
       >
         {hasVideo && (
           <Magnetic className="mb-8">
             <motion.button
               type="button"
-              onClick={handlePlayClick}
-              className="group w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center"
+              onClick={handlePlayPause}
+              className="group flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm md:h-24 md:w-24"
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.95 }}
               animate={{
@@ -137,39 +170,37 @@ export function VideoSection() {
                 ],
               }}
               transition={{ duration: 2.2, repeat: Infinity }}
-              aria-label={isPlaying ? "Pause video" : "Play video"}
+              aria-label="Play video"
             >
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center">
-                <Play className="w-8 h-8 md:w-10 md:h-10 text-[#1F2A54] fill-[#1F2A54] ml-1" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white md:h-20 md:w-20">
+                <Play className="ml-1 h-8 w-8 fill-[#1F2A54] text-[#1F2A54] md:h-10 md:w-10" />
               </div>
             </motion.button>
           </Magnetic>
         )}
 
-        {content?.title && (
-          <Reveal direction="up" delay={0.15}>
-            <h2 className="font-royal text-2xl md:text-4xl lg:text-5xl text-white font-medium text-balance">
-              {content.title}
+        {normalized.title && (
+          <Reveal direction="up" delay={0.1}>
+            <h2 className="font-royal text-balance text-2xl font-medium text-white md:text-4xl lg:text-5xl">
+              {normalized.title}
             </h2>
           </Reveal>
         )}
       </motion.div>
 
+      {/* Pause control while playing — click anywhere on video area */}
       {isPlaying && hasVideo && (
         <motion.button
           type="button"
-          onClick={handlePlayClick}
-          className="absolute inset-0 z-20 flex items-center justify-center cursor-pointer group"
+          onClick={handlePlayPause}
+          className="absolute inset-0 z-20 flex cursor-pointer items-center justify-center bg-black/10 opacity-0 transition-opacity hover:opacity-100 focus:opacity-100"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           aria-label="Pause video"
         >
-          <motion.div
-            className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center"
-            whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.35)" }}
-          >
-            <Pause className="w-8 h-8 md:w-10 md:h-10 text-white" />
-          </motion.div>
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/25 backdrop-blur-sm md:h-20 md:w-20">
+            <Pause className="h-8 w-8 text-white md:h-10 md:w-10" />
+          </div>
         </motion.button>
       )}
     </section>

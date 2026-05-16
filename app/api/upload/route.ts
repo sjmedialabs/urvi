@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 
-const VALID_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
-const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -13,12 +10,6 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-    if (!VALID_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: "Invalid file type. Only images are allowed." }, { status: 400 });
-    }
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File too large. Maximum size is 10MB." }, { status: 400 });
     }
 
     const timestamp = Date.now();

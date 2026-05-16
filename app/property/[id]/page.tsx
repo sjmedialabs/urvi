@@ -303,15 +303,13 @@ export default function PropertyDetailPage() {
       <Header />
 
       {/* Hero Section - image from CMS only */}
-      <section className="relative min-h-[400px] md:h-[550px]">
+      <section className="relative h-[300px] w-full overflow-hidden">
         {heroImage ? (
-          <Image src={heroImage} alt={project.title} fill className="object-cover" />
+          <Image src={heroImage} alt={project.title} fill className="object-cover object-center" />
         ) : (
           <div className="absolute inset-0 bg-[#1F2A54]" aria-hidden />
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/20 to-black/50" />
-        
-        <div className="absolute inset-0 flex items-center">
+        <div className="absolute inset-0 z-10 flex items-center">
           <div className="max-w-[1200px] mx-auto px-4 w-full">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 md:gap-8">
               {/* Left Content */}

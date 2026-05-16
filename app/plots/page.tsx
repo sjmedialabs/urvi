@@ -6,7 +6,10 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { ListingHero } from "@/components/listing-hero";
+import { usePageContent } from "@/hooks/use-page-content";
 import { Project } from "@/lib/firestore";
+import { isValidImageUrl } from "@/lib/media";
 
 const filterTabs = [
   { id: "all", label: "All Projects" },
@@ -19,8 +22,7 @@ export default function PlotsPage() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [heroTitle, setHeroTitle] = useState("PROJECT GALOUR LATEST\nPROJECTSLARY");
-  const [heroImage, setHeroImage] = useState("/images/video-bg.jpg");
+  const { data: pageContent, loading: pageLoading } = usePageContent("plots");
 
   useEffect(() => {
     async function fetchProjects() {
@@ -42,18 +44,7 @@ export default function PlotsPage() {
         setLoading(false);
       }
     }
-    async function fetchHero() {
-      try {
-        const res = await fetch("/api/v1/content/pages/plots");
-        const json = await res.json().catch(() => ({}));
-        if (res.ok && json?.data) {
-          if (json.data.title) setHeroTitle(json.data.title);
-          if (json.data.heroImage) setHeroImage(json.data.heroImage);
-        }
-      } catch {}
-    }
     fetchProjects();
-    fetchHero();
   }, []);
 
   const filteredProjects = activeFilter === "all" 
@@ -70,23 +61,12 @@ export default function PlotsPage() {
     <main className="min-h-screen overflow-x-hidden">
       <Header />
       
-      {/* Hero Section */}
-      <section className="relative h-[500px]">
-        <Image
-          src={heroImage}
-          alt="Plots"
-          fill
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#C9A227]/80 to-[#C9A227]/40" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <h1 className="inner-hero-title font-royal text-white text-center">
-            {heroTitle.split("\n").map((line, i) => (
-              <span key={i}>{line}{i < heroTitle.split("\n").length - 1 && <br />}</span>
-            ))}
-          </h1>
-        </div>
-      </section>
+      <ListingHero
+        title={pageContent?.title}
+        image={pageContent?.heroImage}
+        loading={pageLoading}
+        defaultAlt="Plots"
+      />
 
       {/* Projects Section */}
       <section className="py-16 bg-white">
@@ -126,9 +106,9 @@ export default function PlotsPage() {
                   className="group block"
                 >
                   <div className="relative h-[420px] rounded-[20px] overflow-hidden border border-gray-200 shadow-sm card-hover-lift">
-                    {project.image ? (
+                    {isValidImageUrl(project.image) ? (
                       <Image
-                        src={project.image}
+                        src={project.image!}
                         alt={project.title}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-500"

@@ -1,26 +1,25 @@
 /**
- * GET /api/v1/content/hero - Hero content (public, cached).
+ * GET /api/v1/content/hero - Hero slides (public). Uses Admin SDK for reliable reads.
  */
 
 import { NextResponse } from "next/server";
-import { getHeroContent, getHeroSlides } from "@/lib/firestore";
 import { apiInternalError } from "@/lib/api/errors";
-import { unstable_cache } from "next/cache";
+import { adminGetHeroSlides, adminGetSettingsDoc, isAdminConfigured } from "@/lib/firestore-admin";
 
-const CACHE_TTL = 60;
-
-async function getHeroUncached() {
-  const [content, slides] = await Promise.all([getHeroContent(), getHeroSlides()]);
-  return { content, slides };
-}
-
-const getHeroCached = unstable_cache(getHeroUncached, ["content-hero"], { revalidate: CACHE_TTL });
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const data = await getHeroCached();
-    return NextResponse.json({ data });
+    if (!isAdminConfigured()) {
+      return NextResponse.json({ data: { content: null, slides: [] } });
+    }
+    const [content, slides] = await Promise.all([
+      adminGetSettingsDoc("hero"),
+      adminGetHeroSlides(),
+    ]);
+    return NextResponse.json({ data: { content, slides } });
   } catch (err) {
+    console.error("[API] GET /api/v1/content/hero error:", err);
     return apiInternalError(err);
   }
 }

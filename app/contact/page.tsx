@@ -3,21 +3,12 @@
 import React from "react"
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import type { ContactInfo } from "@/lib/firestore";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
-import { Loader2, Menu, X, ArrowRight } from "lucide-react";
+import { ListingHero } from "@/components/listing-hero";
+import { Loader2, ArrowRight, Mail, Phone, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// Default contact info (fallback)
-const defaultContactInfo: ContactInfo = {
-  email: "support@urvi.com",
-  phone: "+(91) 123 - 456 88",
-  address: "401 Broadway, 24th Floor, Orchard View, madhapur, HYDERABAD",
-  mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3806.2830036979513!2d78.3846389!3d17.4488689!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bcb91ff39e54b51%3A0x5d3e7c7a0a3f5a23!2sMadhapur%2C%20Hyderabad%2C%20Telangana!5e0!3m2!1sen!2sin!4v1699876543210!5m2!1sen!2sin",
-};
 
 interface FormData {
   firstName: string;
@@ -34,10 +25,10 @@ interface FormErrors {
 }
 
 export default function ContactPage() {
-  const [contactInfo, setContactInfo] = useState<ContactInfo>(defaultContactInfo);
-  const [loading, setLoading] = useState(false);
-  const [heroTitle, setHeroTitle] = useState("PROJECT GALOUR LATEST\nPROJECTSLARY");
-  const [heroImage, setHeroImage] = useState("/images/contact-banner.png");
+  const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [heroTitle, setHeroTitle] = useState<string | undefined>();
+  const [heroImage, setHeroImage] = useState<string | undefined>();
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -54,12 +45,14 @@ export default function ContactPage() {
         const res = await fetch("/api/v1/content/contact");
         const json = await res.json().catch(() => ({}));
         if (res.ok && json?.data) {
-          setContactInfo({ ...defaultContactInfo, ...json.data });
+          setContactInfo(json.data);
           if (json.data.heroTitle) setHeroTitle(json.data.heroTitle);
           if (json.data.heroImage) setHeroImage(json.data.heroImage);
         }
-      } catch {
-        // Silently use default contact info
+      } catch (e) {
+        console.error("Contact page load error:", e);
+      } finally {
+        setPageLoading(false);
       }
     }
     fetchContactInfo();
@@ -147,23 +140,7 @@ export default function ContactPage() {
       {/* Header */}
       <Header />
 
-      {/* Hero Banner */}
-      <section className="relative h-[500px]">
-        <Image
-          src={heroImage}
-          alt="Contact Us"
-          fill
-          className="object-cover"
-          priority
-        />
-        <div className="absolute inset-0 flex items-center justify-center py-2.5">
-          <h1 className="inner-hero-title font-royal text-white text-center tracking-wide">
-            {heroTitle.split("\n").map((line, i) => (
-              <span key={i}>{line}{i < heroTitle.split("\n").length - 1 && <br />}</span>
-            ))}
-          </h1>
-        </div>
-      </section>
+      <ListingHero title={heroTitle} image={heroImage} loading={pageLoading} defaultAlt="Contact Us" />
 
       {/* Contact Cards */}
       <section className="py-16 bg-[#F5F5F5]">
@@ -171,19 +148,13 @@ export default function ContactPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Email Card */}
             <div className="bg-[#ffffff] rounded-[8px] p-6 border border-gray-200 flex flex-col h-[220px] card-hover-lift transition-all duration-300">
-              <div className="mb-4">
-                <Image
-                  src="/images/icons/mail-icon.png"
-                  alt="Email"
-                  width={24}
-                  height={24}
-                  className="w-6 h-6"
-                />
+              <div className="mb-4 text-[#1F2A54]">
+                <Mail className="w-6 h-6" aria-hidden />
               </div>
               <h3 className="text-[#1F2A54] font-bold text-base mb-1">Support email</h3>
-              <p className="text-[#666666] text-sm mb-auto">{contactInfo.email}</p>
+              <p className="text-[#666666] text-sm mb-auto">{contactInfo?.email || "—"}</p>
               <a 
-                href={`mailto:${contactInfo.email}`}
+                href={contactInfo?.email ? `mailto:${contactInfo.email}` : "#"}
                 className="block w-full py-2.5 bg-[#C9A86C] text-white text-sm font-medium rounded-full text-center hover:bg-[#b89555] transition-colors mt-4"
               >
                 Email Us
@@ -192,19 +163,13 @@ export default function ContactPage() {
 
             {/* Phone Card */}
             <div className="bg-[#ffffff] rounded-[8px] p-6 border border-gray-200 flex flex-col h-[220px] card-hover-lift transition-all duration-300">
-              <div className="mb-4">
-                <Image
-                  src="/images/icons/phone-icon.png"
-                  alt="Phone"
-                  width={24}
-                  height={24}
-                  className="w-6 h-6"
-                />
+              <div className="mb-4 text-[#1F2A54]">
+                <Phone className="w-6 h-6" aria-hidden />
               </div>
               <h3 className="text-[#1F2A54] font-bold text-base mb-1">Phone number</h3>
-              <p className="text-[#666666] text-sm mb-auto">{contactInfo.phone}</p>
+              <p className="text-[#666666] text-sm mb-auto">{contactInfo?.phone || "—"}</p>
               <a 
-                href={`tel:${contactInfo.phone.replace(/[^0-9+]/g, '')}`}
+                href={contactInfo?.phone ? `tel:${contactInfo.phone.replace(/[^0-9+]/g, "")}` : "#"}
                 className="block w-full py-2.5 bg-[#C9A86C] text-white text-sm font-medium rounded-full text-center hover:bg-[#b89555] transition-colors mt-4"
               >
                 Call Us
@@ -213,19 +178,13 @@ export default function ContactPage() {
 
             {/* Location Card */}
             <div className="bg-[#ffffff] rounded-[8px] p-6 border border-gray-200 flex flex-col h-[220px]">
-              <div className="mb-4">
-                <Image
-                  src="/images/icons/location-icon.png"
-                  alt="Location"
-                  width={24}
-                  height={24}
-                  className="w-6 h-6"
-                />
+              <div className="mb-4 text-[#1F2A54]">
+                <MapPin className="w-6 h-6" aria-hidden />
               </div>
               <h3 className="text-[#1F2A54] font-bold text-base mb-1">Location</h3>
-              <p className="text-[#666666] text-sm mb-auto line-clamp-2">{contactInfo.address}</p>
+              <p className="text-[#666666] text-sm mb-auto line-clamp-2">{contactInfo?.address || "—"}</p>
               <a 
-                href={`https://maps.google.com/?q=${encodeURIComponent(contactInfo.address)}`}
+                href={contactInfo?.address ? `https://maps.google.com/?q=${encodeURIComponent(contactInfo.address)}` : "#"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full py-2.5 bg-[#C9A86C] text-white text-sm font-medium rounded-full text-center hover:bg-[#b89555] transition-colors mt-4"
@@ -349,8 +308,9 @@ export default function ContactPage() {
 
             {/* Map */}
             <div className="rounded-lg overflow-hidden h-[400px] lg:h-auto">
+              {contactInfo?.mapUrl ? (
               <iframe
-                src={contactInfo.mapUrl || defaultContactInfo.mapUrl}
+                src={contactInfo.mapUrl}
                 width="100%"
                 height="100%"
                 style={{ border: 0, minHeight: "400px" }}
@@ -359,6 +319,11 @@ export default function ContactPage() {
                 referrerPolicy="no-referrer-when-downgrade"
                 title="Location Map"
               />
+              ) : (
+                <div className="flex items-center justify-center h-full min-h-[400px] bg-gray-100 text-gray-500 text-sm">
+                  Map embed URL can be configured in the admin contact settings.
+                </div>
+              )}
             </div>
           </div>
         </div>

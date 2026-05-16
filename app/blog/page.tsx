@@ -3,40 +3,33 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getArticles, type Article } from "@/lib/firestore";
+import type { Article } from "@/lib/firestore";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
-import { Loader2 } from "lucide-react";
+import { ListingHero } from "@/components/listing-hero";
+import { SafeImage } from "@/components/safe-image";
+import { usePageContent } from "@/hooks/use-page-content";
+import { ChevronRight, Loader2 } from "lucide-react";
 
 export default function BlogPage() {
   const [posts, setPosts] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [heroTitle, setHeroTitle] = useState("PROJECT GALOUR LATEST\nPROJECTSLARY");
-  const [heroImage, setHeroImage] = useState("/images/blog-banner.png");
+  const { data: pageContent, loading: pageLoading } = usePageContent("blog");
 
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const data = await getArticles();
-        setPosts(data);
+        const res = await fetch("/api/v1/articles/public", { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+        setPosts(Array.isArray(json?.data) ? json.data : []);
       } catch (error) {
         console.error("Error fetching blog posts:", error);
+        setPosts([]);
       } finally {
         setLoading(false);
       }
     }
-    async function fetchHero() {
-      try {
-        const res = await fetch("/api/v1/content/pages/blog");
-        const json = await res.json().catch(() => ({}));
-        if (res.ok && json?.data) {
-          if (json.data.heroTitle) setHeroTitle(json.data.heroTitle);
-          if (json.data.heroImage) setHeroImage(json.data.heroImage);
-        }
-      } catch {}
-    }
     fetchPosts();
-    fetchHero();
   }, []);
 
   return (
@@ -44,35 +37,16 @@ export default function BlogPage() {
       {/* Header */}
       <Header />
 
-      {/* Hero Banner */}
-      <section className="relative h-[500px]">
-        <Image
-          src={heroImage}
-          alt="Blog Banner"
-          fill
-          className="object-cover"
-          priority
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <h1 className="inner-hero-title font-royal text-white text-center tracking-wider">
-            {heroTitle.split("\n").map((line, i) => (
-              <span key={i}>{line}{i < heroTitle.split("\n").length - 1 && <br />}</span>
-            ))}
-          </h1>
-        </div>
-      </section>
+      <ListingHero
+        title={(pageContent?.heroTitle as string) || pageContent?.title}
+        image={pageContent?.heroImage}
+        loading={pageLoading}
+        defaultAlt="Blog"
+      />
 
       {/* Blog Section */}
       <section className="py-16 relative overflow-hidden">
         {/* Decorative U Pattern Background */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] opacity-50 pointer-events-none">
-          <Image
-            src="/images/u-pattern.png"
-            alt=""
-            fill
-            className="object-contain"
-          />
-        </div>
 
         <div className="max-w-[1200px] mx-auto px-4 relative z-10">
           {/* Section Header */}
@@ -107,8 +81,9 @@ export default function BlogPage() {
                   {/* Clickable Image */}
                   <Link href={`/blog/${post.id}`}>
                     <div className="relative aspect-square rounded-2xl overflow-hidden mb-4 cursor-pointer">
-                      <Image
-                        src={post.image || "/placeholder.svg"}
+                      <SafeImage
+                        src={post.image}
+                        hideIfEmpty
                         alt={post.title}
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -130,13 +105,7 @@ export default function BlogPage() {
                       className="inline-flex items-center gap-2 text-[#1F2A54] font-medium text-sm hover:text-[#DDA21A] transition-colors"
                     >
                       Read More
-                      <Image
-                        src="/images/arrow-right.png"
-                        alt=""
-                        width={20}
-                        height={10}
-                        className="w-5 h-auto"
-                      />
+                      <ChevronRight className="w-4 h-4" aria-hidden />
                     </Link>
                   </div>
                 </article>

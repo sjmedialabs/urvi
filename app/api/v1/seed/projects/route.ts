@@ -68,6 +68,13 @@ const SEED_PROJECTS = [
 ];
 
 export async function POST(request: Request) {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_SEED !== "true") {
+    return NextResponse.json(
+      { error: "Seed is disabled in production. Set ALLOW_SEED=true only for intentional maintenance." },
+      { status: 403 }
+    );
+  }
+
   const auth = await requireAuth(request);
   if ("response" in auth) return auth.response;
 

@@ -53,7 +53,7 @@ export function Header() {
           <div className="pt-4 pb-2">
             <Link href="/">
               <Image
-                src="/images/urvi-logo-header.png"
+                src="/icon.svg"
                 alt="Urvi Constructions"
                 width={120}
                 height={50}
@@ -96,7 +96,7 @@ export function Header() {
           <div className="flex items-center justify-center py-4 relative">
             <Link href="/">
               <Image
-                src="/images/urvi-logo-header.png"
+                src="/icon.svg"
                 alt="Urvi Constructions"
                 width={100}
                 height={40}

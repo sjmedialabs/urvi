@@ -363,12 +363,11 @@ export default function CMSHomePage() {
               <div className="text-center py-8">
                 <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">
-                  Configure the YouTube video that appears in the video section.
-                  This content is currently managed through site settings.
+                  Edit video URL, poster image, and headline (page slug: home-video).
                 </p>
                 <Button asChild variant="outline">
-                  <Link href="/admin/dashboard/settings">
-                    Edit Settings <ArrowRight size={16} className="ml-2" />
+                  <Link href="/admin/dashboard/cms/home-video">
+                    Edit Video Section <ArrowRight size={16} className="ml-2" />
                   </Link>
                 </Button>
               </div>

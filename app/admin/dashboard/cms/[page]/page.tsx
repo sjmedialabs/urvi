@@ -19,6 +19,8 @@ const pageConfig: Record<string, { title: string; description: string }> = {
   villas: { title: "Villas Page", description: "Manage villas listing page content" },
   commercial: { title: "Commercial Page", description: "Manage commercial properties page content" },
   plots: { title: "Plots Page", description: "Manage open plots page content" },
+  "home-why-us": { title: "Home — Why Us", description: "Homepage why-us section (title, features, image)" },
+  "home-video": { title: "Home — Video", description: "Homepage video section (title, video URL, poster)" },
 };
 
 interface Section {

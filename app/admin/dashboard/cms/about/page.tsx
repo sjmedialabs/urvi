@@ -40,32 +40,27 @@ interface AboutPageContent {
   teamMembers: TeamMember[];
 }
 
-const defaultContent: AboutPageContent = {
-  heroTitle: "CREATING VALUE THROUGH INNOVATION",
-  heroImage: "/images/about/hero-boardroom.png",
-  tagline: "Quality.\nPrecision.\nPerformance.",
-  introText: "We'd love to share more with you, please complete this form and our dedicated team will get back to you shortly.",
-  description: "At Urvi Constructions, we are committed to delivering projects that exemplify superior quality, thoughtful innovation, and meticulous planning. We believe in building lasting relationships with our clients by consistently exceeding expectations and earning their trust at every stage.",
-  missionTitle: "Our Mission",
-  missionText: "At Urvi Constructions, our mission is to redefine residential living through thoughtful innovation and inspired design. We are driven to execute every project with precision and timeliness, delivering homes that reflect superior quality, enduring value, and refined aesthetics—without compromise.",
-  missionIcon: "/images/icons/mission-icon.png",
-  visionTitle: "Our Vision",
-  visionText: "At Urvi Constructions, our mission is to redefine residential living through thoughtful innovation and inspired design. We are driven to execute every project with precision and timeliness, delivering homes that reflect superior quality, enduring value, and refined aesthetics—without compromise.",
-  visionIcon: "/images/icons/vision-icon.png",
-  leadersTitle: "OUR LEADERS",
-  leadersSubtitle: "MEET THE VISIONARIES BEHIND THE ALIENS GROUP",
-  teamMembers: [
-    { id: "1", name: "Hari Challa", role: "Managing Director", image: "/images/team/leader-1.png", order: 1 },
-    { id: "2", name: "Raghu ram Reddy", role: "Managing Director", image: "/images/team/leader-2.png", order: 2 },
-    { id: "3", name: "Harini Choudary", role: "Joint Director", image: "/images/team/leader-3.png", order: 3 },
-    { id: "4", name: "Prathush reddy", role: "Managing Director", image: "/images/team/leader-4.png", order: 4 },
-  ],
+const emptyContent: AboutPageContent = {
+  heroTitle: "",
+  heroImage: "",
+  tagline: "",
+  introText: "",
+  description: "",
+  missionTitle: "",
+  missionText: "",
+  missionIcon: "",
+  visionTitle: "",
+  visionText: "",
+  visionIcon: "",
+  leadersTitle: "",
+  leadersSubtitle: "",
+  teamMembers: [],
 };
 
 export default function CMSAboutPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [content, setContent] = useState<AboutPageContent>(defaultContent);
+  const [content, setContent] = useState<AboutPageContent>(emptyContent);
   const [loadingData, setLoadingData] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("hero");
@@ -82,7 +77,7 @@ export default function CMSAboutPage() {
         const res = await fetch("/api/v1/content/about");
         const json = await res.json().catch(() => ({}));
         if (res.ok && json?.data) {
-          setContent({ ...defaultContent, ...json.data });
+          setContent({ ...emptyContent, ...json.data, teamMembers: json.data.teamMembers ?? [] });
         }
       } catch (err) {
         console.error("Error fetching about content:", err);

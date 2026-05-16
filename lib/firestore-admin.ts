@@ -470,6 +470,24 @@ export async function adminGetPropertyAmenities(propertyId: string): Promise<Rec
   }
 }
 
+/** Hero carousel slides (collection heroSlides, sorted by order). */
+export async function adminGetHeroSlides(): Promise<Record<string, unknown>[]> {
+  const db = getAdminDb();
+  if (!db) return [];
+  const snapshot = await db.collection("heroSlides").get();
+  const items = snapshot.docs.map((d) => {
+    const data = d.data() as Record<string, unknown>;
+    return { id: d.id, ...data };
+  });
+  items.sort((a, b) => (Number(a.order) ?? 0) - (Number(b.order) ?? 0));
+  return items;
+}
+
+/** Settings singleton (e.g. settings/hero, settings/about). */
+export async function adminGetSettingsDoc(docId: string): Promise<Record<string, unknown> | null> {
+  return adminGetDocument("settings", docId);
+}
+
 /** Get a document by collection and doc id (for content APIs). */
 export async function adminGetDocument(
   collection: string,

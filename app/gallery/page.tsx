@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getGalleryImages, type GalleryImage } from "@/lib/firestore";
+import { getGalleryImages } from "@/lib/firestore";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { ListingHero } from "@/components/listing-hero";
+import { SafeImage } from "@/components/safe-image";
+import { usePageContent } from "@/hooks/use-page-content";
 import { Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 // Project type with multiple images
@@ -22,8 +25,7 @@ export default function GalleryPage() {
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<ProjectGallery | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [heroTitle, setHeroTitle] = useState("PROJECT GALOUR LATEST\nPROJECTSLARY");
-  const [heroImage, setHeroImage] = useState("/images/gallery-banner.png");
+  const { data: pageContent, loading: pageLoading } = usePageContent("gallery");
 
   useEffect(() => {
     async function fetchGallery() {
@@ -43,18 +45,7 @@ export default function GalleryPage() {
         setLoading(false);
       }
     }
-    async function fetchHero() {
-      try {
-        const res = await fetch("/api/v1/content/pages/gallery");
-        const json = await res.json().catch(() => ({}));
-        if (res.ok && json?.data) {
-          if (json.data.heroTitle) setHeroTitle(json.data.heroTitle);
-          if (json.data.heroImage) setHeroImage(json.data.heroImage);
-        }
-      } catch {}
-    }
     fetchGallery();
-    fetchHero();
   }, []);
 
   const openGalleryPopup = (project: ProjectGallery) => {
@@ -89,37 +80,16 @@ export default function GalleryPage() {
     <div className="min-h-screen bg-white overflow-x-hidden">
       <Header />
 
-      {/* Hero Banner */}
-      <section className="relative h-[500px]">
-        <Image
-          src={heroImage}
-          alt="Gallery Banner"
-          fill
-          className="object-cover"
-          priority
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="inner-hero-title font-royal text-white tracking-wide">
-              {heroTitle.split("\n").map((line, i) => (
-                <span key={i}>{line}{i < heroTitle.split("\n").length - 1 && <br />}</span>
-              ))}
-            </h1>
-          </div>
-        </div>
-      </section>
+      <ListingHero
+        title={(pageContent?.heroTitle as string) || pageContent?.title}
+        image={pageContent?.heroImage}
+        loading={pageLoading}
+        defaultAlt="Gallery"
+      />
 
       {/* Gallery Section */}
       <section className="py-16 relative overflow-hidden">
         {/* Decorative U Pattern Background */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] pointer-events-none opacity-50">
-          <Image
-            src="/images/u-pattern.png"
-            alt=""
-            fill
-            className="object-contain"
-          />
-        </div>
 
         <div className="max-w-[1200px] mx-auto px-4 relative z-10">
           {/* Section Header */}
@@ -146,8 +116,9 @@ export default function GalleryPage() {
                   onClick={() => openGalleryPopup(project)}
                 >
                   <div className="relative aspect-square rounded-2xl overflow-hidden mb-3">
-                    <Image
-                      src={project.thumbnail || "/placeholder.svg"}
+                    <SafeImage
+                      src={project.thumbnail}
+                      hideIfEmpty
                       alt={project.title}
                       fill
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -188,8 +159,9 @@ export default function GalleryPage() {
 
             {/* Main Image */}
             <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
-              <Image
-                src={selectedProject.images[currentImageIndex] || "/placeholder.svg"}
+              <SafeImage
+                src={selectedProject.images[currentImageIndex]}
+                hideIfEmpty
                 alt={`${selectedProject.title} - Image ${currentImageIndex + 1}`}
                 fill
                 className="object-contain"
@@ -230,8 +202,9 @@ export default function GalleryPage() {
                       idx === currentImageIndex ? "border-[#DDA21A]" : "border-transparent"
                     }`}
                   >
-                    <Image
-                      src={img || "/placeholder.svg"}
+                    <SafeImage
+                      src={img}
+                      hideIfEmpty
                       alt={`Thumbnail ${idx + 1}`}
                       fill
                       className="object-cover"

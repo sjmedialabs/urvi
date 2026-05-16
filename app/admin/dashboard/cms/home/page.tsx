@@ -491,7 +491,7 @@ export default function CMSHomePage() {
                 Background Image <span className="text-red-500">*</span>
               </label>
               <p className="text-xs text-muted-foreground mb-2">
-                Recommended: 1920x1080px, 16:9 aspect ratio, max 5MB
+                JPEG, PNG, or WebP — max 5MB
               </p>
               <ImageUpload
                 value={slideForm.backgroundImage}

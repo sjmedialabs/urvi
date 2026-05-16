@@ -23,9 +23,6 @@ export const IMAGE_PRESETS: Record<string, ImageValidationRules> = {
   heroBanner: {
     maxFileSize: 5 * 1024 * 1024, // 5MB
     allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
-    aspectRatio: { width: 16, height: 9, tolerance: 5 },
-    minDimensions: { width: 1920, height: 1080 },
-    recommendedDimensions: { width: 1920, height: 1080 },
   },
   cardThumbnail: {
     maxFileSize: 2 * 1024 * 1024, // 2MB

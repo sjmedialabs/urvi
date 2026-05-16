@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Facebook, Linkedin, Youtube } from "lucide-react";
+import { Reveal } from "@/components/motion/reveal";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import type { ContactInfo } from "@/lib/firestore";
 
 const quickLinks = [
@@ -61,8 +63,8 @@ export function Footer() {
     <footer>
       <div className="bg-[#F5F5F5] py-16">
         <div className="max-w-[1200px] mx-auto px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-            <div>
+          <Stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+            <StaggerItem>
               <Link href="/">
                 <Image
                   src="/icon.svg"
@@ -91,9 +93,9 @@ export function Footer() {
                   <p className="text-sm text-muted-foreground">Contact details can be configured in the admin panel.</p>
                 )}
               </div>
-            </div>
+            </StaggerItem>
 
-            <div>
+            <StaggerItem>
               <h4 className="font-semibold text-[#1F2A54] text-lg mb-6 underline underline-offset-4">Quick Links</h4>
               <ul className="space-y-3">
                 {quickLinks.map((link) => (
@@ -104,9 +106,9 @@ export function Footer() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </StaggerItem>
 
-            <div>
+            <StaggerItem>
               <h4 className="font-semibold text-[#1F2A54] text-lg mb-6 underline underline-offset-4">Discover</h4>
               <ul className="space-y-3">
                 {discoverLinks.map((link) => (
@@ -117,9 +119,9 @@ export function Footer() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </StaggerItem>
 
-            <div>
+            <StaggerItem>
               <h4 className="font-semibold text-[#1F2A54] text-lg mb-6 underline underline-offset-4">Get Social</h4>
               <div className="flex items-center gap-3 flex-wrap">
                 <SocialIcon href={social?.facebook || ""} label="Facebook">
@@ -135,8 +137,8 @@ export function Footer() {
                   <Youtube className="w-5 h-5" />
                 </SocialIcon>
               </div>
-            </div>
-          </div>
+            </StaggerItem>
+          </Stagger>
         </div>
       </div>
 

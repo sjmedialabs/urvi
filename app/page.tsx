@@ -7,9 +7,11 @@ import { WhyUsSection } from "@/components/why-us-section";
 import { TestimonialsSection } from "@/components/testimonials-section";
 import { NewsSection } from "@/components/news-section";
 import { Footer } from "@/components/footer";
+import { PageTransition } from "@/components/motion/page-transition";
 
 export default function HomePage() {
   return (
+    <PageTransition>
     <main className="min-h-screen overflow-x-hidden">
       <Header />
       <HeroSection />
@@ -21,5 +23,6 @@ export default function HomePage() {
       <NewsSection />
       <Footer />
     </main>
+    </PageTransition>
   );
 }

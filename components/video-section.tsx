@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause } from "lucide-react";
-import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { motion } from "framer-motion";
 import { isValidImageUrl } from "@/lib/media";
+import { Reveal } from "@/components/motion/reveal";
+import { Magnetic } from "@/components/motion/magnetic";
 
 type VideoContent = {
   title?: string;
@@ -17,7 +19,6 @@ export function VideoSection() {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
-  const { ref: animRef, isVisible } = useScrollAnimation<HTMLDivElement>();
 
   useEffect(() => {
     async function load() {
@@ -56,7 +57,11 @@ export function VideoSection() {
   if (loading) {
     return (
       <section className="relative h-[400px] md:h-[500px] bg-[#1e3a5f]">
-        <div className="absolute inset-0 bg-white/5 animate-pulse" />
+        <motion.div
+          className="absolute inset-0 bg-white/5"
+          animate={{ opacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        />
       </section>
     );
   }
@@ -82,11 +87,15 @@ export function VideoSection() {
 
   return (
     <section ref={sectionRef} className="relative h-[500px] md:h-[600px] overflow-hidden">
-      <div
-        className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-500 ${
+      <motion.div
+        className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${
           isPlaying ? "opacity-0" : "opacity-100"
         }`}
         style={posterStyle}
+        initial={{ scale: 1.1 }}
+        whileInView={{ scale: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 1.4 }}
       />
 
       {hasVideo && (
@@ -103,49 +112,65 @@ export function VideoSection() {
         />
       )}
 
-      <div
-        ref={animRef}
-        className={`relative z-10 h-full flex flex-col items-center justify-center text-center px-4 transition-opacity duration-500 ${
+      <motion.div
+        className={`relative z-10 h-full flex flex-col items-center justify-center text-center px-4 ${
           isPlaying ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8 }}
       >
         {hasVideo && (
-          <button
-            type="button"
-            onClick={handlePlayClick}
-            className={`group w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mb-8 hover:bg-white/30 transition-all duration-300 ${
-              isVisible ? "animate-on-scroll animate-scale-in animate-visible" : "animate-on-scroll animate-scale-in"
-            }`}
-            aria-label={isPlaying ? "Pause video" : "Play video"}
-          >
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Play className="w-8 h-8 md:w-10 md:h-10 text-[#1F2A54] fill-[#1F2A54] ml-1" />
-            </div>
-          </button>
+          <Magnetic className="mb-8">
+            <motion.button
+              type="button"
+              onClick={handlePlayClick}
+              className="group w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.95 }}
+              animate={{
+                boxShadow: [
+                  "0 0 0 0 rgba(221,162,26,0.45)",
+                  "0 0 0 24px rgba(221,162,26,0)",
+                  "0 0 0 0 rgba(221,162,26,0)",
+                ],
+              }}
+              transition={{ duration: 2.2, repeat: Infinity }}
+              aria-label={isPlaying ? "Pause video" : "Play video"}
+            >
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center">
+                <Play className="w-8 h-8 md:w-10 md:h-10 text-[#1F2A54] fill-[#1F2A54] ml-1" />
+              </div>
+            </motion.button>
+          </Magnetic>
         )}
 
         {content?.title && (
-          <h2
-            className={`font-royal text-2xl md:text-4xl lg:text-5xl text-white font-medium text-balance transition-all duration-700 ${
-              isVisible ? "animate-on-scroll animate-fade-up animate-visible animate-delay-200" : "animate-on-scroll animate-fade-up"
-            }`}
-          >
-            {content.title}
-          </h2>
+          <Reveal direction="up" delay={0.15}>
+            <h2 className="font-royal text-2xl md:text-4xl lg:text-5xl text-white font-medium text-balance">
+              {content.title}
+            </h2>
+          </Reveal>
         )}
-      </div>
+      </motion.div>
 
       {isPlaying && hasVideo && (
-        <button
+        <motion.button
           type="button"
           onClick={handlePlayClick}
           className="absolute inset-0 z-20 flex items-center justify-center cursor-pointer group"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           aria-label="Pause video"
         >
-          <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <motion.div
+            className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center"
+            whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.35)" }}
+          >
             <Pause className="w-8 h-8 md:w-10 md:h-10 text-white" />
-          </div>
-        </button>
+          </motion.div>
+        </motion.button>
       )}
     </section>
   );

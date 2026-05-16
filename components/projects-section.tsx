@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
-import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
+import { Reveal } from "@/components/motion/reveal";
 
 interface ProjectDisplay {
   id: string;
@@ -21,8 +22,6 @@ export function ProjectsSection() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slidesToShow, setSlidesToShow] = useState(3);
   const [touchStart, setTouchStart] = useState<number | null>(null);
-  const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation<HTMLDivElement>();
-  const { ref: sliderRef, isVisible: sliderVisible } = useScrollAnimation<HTMLDivElement>();
 
   useEffect(() => {
     async function fetchProjects() {
@@ -94,28 +93,16 @@ export function ProjectsSection() {
   return (
     <section className="py-20 bg-white">
       <div className="max-w-[1200px] mx-auto px-4">
-        {/* Section Header */}
-        <div 
-          ref={headerRef}
-          className={`text-center mb-12 transition-all duration-700 ${
-            headerVisible ? 'animate-on-scroll animate-fade-up animate-visible' : 'animate-on-scroll animate-fade-up'
-          }`}
-        >
+        <Reveal className="text-center mb-12">
           <h2 className="font-extrabold text-3xl md:text-4xl text-[#1F2A54] mb-3">
             Latest Projects
           </h2>
           <p className="text-gray-500 font-normal">
             Discover our latest residential and commercial developments.
           </p>
-        </div>
+        </Reveal>
 
-        {/* Slider wrapper — always in DOM so IntersectionObserver attaches before data loads */}
-        <div
-          ref={sliderRef}
-          className={`relative transition-all duration-700 delay-200 ${
-            sliderVisible ? 'animate-on-scroll animate-fade-up animate-visible' : 'animate-on-scroll animate-fade-up'
-          }`}
-        >
+        <Reveal delay={0.1} className="relative">
         {/* Loading State */}
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -141,29 +128,24 @@ export function ProjectsSection() {
               onTouchEnd={handleTouchEnd}
             >
               {/* Left Arrow */}
-              <button
+              <motion.button
                 type="button"
                 onClick={prevSlide}
                 disabled={currentIndex === 0}
-                className="absolute -left-2 md:-left-16 top-1/2 -translate-y-1/2 z-10 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center disabled:opacity-30 transition-all duration-300 hover:scale-110 cursor-pointer"
+                className="absolute -left-2 md:-left-16 top-1/2 -translate-y-1/2 z-10 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center disabled:opacity-30 text-[#1F2A54]"
+                whileHover={{ scale: 1.15, x: -4 }}
+                whileTap={{ scale: 0.95 }}
                 aria-label="Previous projects"
               >
-                <Image
-                  src="/images/icons/left-arrow-projects.png"
-                  alt="Previous"
-                  width={48}
-                  height={48}
-                  className="w-8 h-8 md:w-12 md:h-12"
-                />
-              </button>
+                <ChevronLeft className="w-10 h-10 md:w-12 md:h-12" />
+              </motion.button>
 
               {/* Projects Cards */}
               <div className="w-full overflow-hidden px-6 md:px-0">
-                <div 
-                  className="flex gap-6 transition-transform duration-500 ease-out"
-                  style={{
-                    transform: `translateX(-${currentIndex * (100 / slidesToShow + 2)}%)`,
-                  }}
+                <motion.div
+                  className="flex gap-6"
+                  animate={{ x: `-${currentIndex * (100 / slidesToShow + 2)}%` }}
+                  transition={{ type: "spring", stiffness: 260, damping: 30 }}
                 >
                   {projects.map((project) => (
                     <Link
@@ -171,7 +153,11 @@ export function ProjectsSection() {
                       href={`/property/${project.slug || project.id}`}
                       className="flex-shrink-0 w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] block"
                     >
-                      <div className="group relative rounded-2xl overflow-hidden aspect-[3/4] cursor-pointer card-hover-lift">
+                      <motion.div
+                        className="group relative rounded-2xl overflow-hidden aspect-[3/4] cursor-pointer"
+                        whileHover={{ y: -8, scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      >
                         {/* Image */}
                         {project.image ? (
                           <Image
@@ -200,28 +186,24 @@ export function ProjectsSection() {
                             <span className="font-normal">{project.location}</span>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     </Link>
                   ))}
-                </div>
+                </motion.div>
               </div>
 
               {/* Right Arrow */}
-              <button
+              <motion.button
                 type="button"
                 onClick={nextSlide}
                 disabled={currentIndex >= maxIndex}
-                className="absolute -right-2 md:-right-16 top-1/2 -translate-y-1/2 z-10 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center disabled:opacity-30 transition-all duration-300 hover:scale-110 cursor-pointer"
+                className="absolute -right-2 md:-right-16 top-1/2 -translate-y-1/2 z-10 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center disabled:opacity-30 text-[#1F2A54]"
+                whileHover={{ scale: 1.15, x: 4 }}
+                whileTap={{ scale: 0.95 }}
                 aria-label="Next projects"
               >
-                <Image
-                  src="/images/icons/right-arrow-projects.png"
-                  alt="Next"
-                  width={48}
-                  height={48}
-                  className="w-8 h-8 md:w-12 md:h-12"
-                />
-              </button>
+                <ChevronRight className="w-10 h-10 md:w-12 md:h-12" />
+              </motion.button>
             </div>
 
             {/* Dots Indicator */}
@@ -240,7 +222,7 @@ export function ProjectsSection() {
             </div>
           </>
         )}
-        </div>{/* end sliderRef wrapper */}
+        </Reveal>
       </div>
     </section>
   );

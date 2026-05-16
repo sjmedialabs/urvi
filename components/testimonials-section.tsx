@@ -4,7 +4,12 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
+import { Reveal } from "@/components/motion/reveal";
+import { FloatingOrbs } from "@/components/motion/floating-orbs";
+import { Magnetic } from "@/components/motion/magnetic";
+import { SafeImage } from "@/components/safe-image";
 interface TestimonialDisplay {
   id: string;
   name: string;
@@ -18,8 +23,6 @@ export function TestimonialsSection() {
   const [isLoading, setIsLoading] = useState(true);
   const [startIndex, setStartIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
-  const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation<HTMLDivElement>();
-  const { ref: cardsRef, isVisible: cardsVisible } = useScrollAnimation<HTMLDivElement>();
 
   useEffect(() => {
     async function fetchTestimonials() {
@@ -77,27 +80,15 @@ export function TestimonialsSection() {
   };
 
   return (
-    <section 
-      className="py-20 relative"
-      style={{
-        backgroundImage: "url('/images/testimonials-bg.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <div className="container mx-auto px-4">
-        {/* Section Header */}
-        <div 
-          ref={headerRef}
-          className={`text-center mb-16 transition-all duration-700 ${
-            headerVisible ? 'animate-on-scroll animate-fade-up animate-visible' : 'animate-on-scroll animate-fade-up'
-          }`}
-        >
-          <p className="text-[#ffffff] font-medium mb-2">Feedback</p>
-          <h2 className="font-extrabold text-3xl md:text-4xl text-[#ffffff]">
+    <section className="py-20 relative overflow-hidden bg-gradient-to-br from-[#1F2A54] via-[#2a3a6e] to-[#1F2A54]">
+      <FloatingOrbs />
+      <div className="container mx-auto px-4 relative z-10">
+        <Reveal className="text-center mb-16">
+          <p className="text-white font-medium mb-2">Feedback</p>
+          <h2 className="font-extrabold text-3xl md:text-4xl text-white">
             Our Testimonials
           </h2>
-        </div>
+        </Reveal>
 
         {/* Loading State */}
         {isLoading && (
@@ -119,52 +110,52 @@ export function TestimonialsSection() {
         {!isLoading && testimonials.length > 0 && (
           <div className="max-w-[1200px] mx-auto relative">
             {/* Navigation Arrows */}
-            <button
+            <motion.button
+              type="button"
               onClick={prevSlide}
-              className="absolute left-0 md:-left-6 top-1/2 -translate-y-1/2 z-10 w-12 h-12 hidden md:flex items-center justify-center hover:scale-110 transition-transform cursor-pointer"
+              className="absolute left-0 md:-left-6 top-1/2 -translate-y-1/2 z-10 w-12 h-12 hidden md:flex items-center justify-center text-white"
+              whileHover={{ scale: 1.15, x: -4 }}
+              whileTap={{ scale: 0.95 }}
               aria-label="Previous testimonial"
             >
-              <Image
-                src="/images/icons/left-arrow-projects.png"
-                alt="Previous"
-                width={48}
-                height={48}
-                className="object-contain"
-              />
-            </button>
-            <button
+              <ChevronLeft className="w-10 h-10" />
+            </motion.button>
+            <motion.button
+              type="button"
               onClick={nextSlide}
-              className="absolute right-0 md:-right-6 top-1/2 -translate-y-1/2 z-10 w-12 h-12 hidden md:flex items-center justify-center hover:scale-110 transition-transform cursor-pointer"
+              className="absolute right-0 md:-right-6 top-1/2 -translate-y-1/2 z-10 w-12 h-12 hidden md:flex items-center justify-center text-white"
+              whileHover={{ scale: 1.15, x: 4 }}
+              whileTap={{ scale: 0.95 }}
               aria-label="Next testimonial"
             >
-              <Image
-                src="/images/icons/right-arrow-projects.png"
-                alt="Next"
-                width={48}
-                height={48}
-                className="object-contain"
-              />
-            </button>
+              <ChevronRight className="w-10 h-10" />
+            </motion.button>
 
-            {/* Testimonial Cards */}
-            <div 
-              ref={cardsRef}
-              className={`grid grid-cols-1 md:grid-cols-2 gap-8 px-4 md:px-12 transition-all duration-700 delay-200 ${
-                cardsVisible ? 'animate-on-scroll animate-fade-up animate-visible' : 'animate-on-scroll animate-fade-up'
-              }`}
+            <AnimatePresence mode="wait">
+            <motion.div
+              key={startIndex}
+              className="grid grid-cols-1 md:grid-cols-2 gap-8 px-4 md:px-12"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
               {getVisibleTestimonials().map((testimonial, index) => (
-                <div
+                <motion.div
                   key={testimonial.id}
-                  className="bg-white rounded-2xl p-8 pt-14 relative shadow-lg card-hover-lift transition-all duration-300"
-                  style={{ transitionDelay: `${index * 150}ms` }}
+                  className="bg-white rounded-2xl p-8 pt-14 relative shadow-lg"
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -6, boxShadow: "0 24px 48px rgba(0,0,0,0.15)" }}
                 >
                   {/* User Photo - Positioned at top, overlapping card */}
                   <div className="absolute -top-10 left-8 w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-md">
-                    <Image
-                      src={testimonial.image || "/placeholder.svg"}
+                    <SafeImage
+                      src={testimonial.image}
+                      hideIfEmpty
                       alt={testimonial.name}
                       fill
                       className="object-cover"
@@ -172,15 +163,9 @@ export function TestimonialsSection() {
                   </div>
 
                   {/* Quote Icon */}
-                  <div className="absolute top-6 right-8">
-                    <Image
-                      src="/images/icons/quotes.png"
-                      alt="Quote"
-                      width={32}
-                      height={28}
-                      className="object-contain"
-                    />
-                  </div>
+                  <motionless className="absolute top-6 right-8 text-[#DDA21A]/40">
+                    <Quote className="w-8 h-8" aria-hidden />
+                  </motionless>
                   
                   {/* Author Info */}
                   <div className="mb-4">
@@ -193,16 +178,18 @@ export function TestimonialsSection() {
                   <p className="text-gray-600 text-sm leading-relaxed">
                     {testimonial.text}
                   </p>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
+            </AnimatePresence>
 
-            {/* CTA Button */}
-            <div className="text-center mt-12">
-              <Button className="bg-[#DDA21A] hover:bg-[#c99318] text-white px-8 py-6 rounded-full text-base font-medium btn-hover-lift btn-hover-glow cursor-pointer transition-all duration-300">
-                See All Testimonials <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
+            <Reveal className="text-center mt-12">
+              <Magnetic>
+                <Button className="bg-[#DDA21A] hover:bg-[#c99318] text-white px-8 py-6 rounded-full text-base font-medium">
+                  See All Testimonials <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Magnetic>
+            </Reveal>
           </div>
         )}
       </div>

@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { motion } from "framer-motion";
+import { Reveal } from "@/components/motion/reveal";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
 
 interface ArticleDisplay {
   id: string;
@@ -26,8 +28,6 @@ function formatDate(val: unknown): string {
 export function NewsSection() {
   const [articles, setArticles] = useState<ArticleDisplay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { ref: headerRef, isVisible: headerVisible } = useScrollAnimation<HTMLDivElement>();
-  const { ref: gridRef, isVisible: gridVisible } = useScrollAnimation<HTMLDivElement>();
 
   useEffect(() => {
     async function fetchArticles() {
@@ -56,19 +56,14 @@ export function NewsSection() {
     <section className="py-20 bg-white">
       <div className="max-w-[1200px] mx-auto px-4">
         {/* Section Header */}
-        <div 
-          ref={headerRef}
-          className={`text-center mb-12 transition-all duration-700 ${
-            headerVisible ? 'animate-on-scroll animate-fade-up animate-visible' : 'animate-on-scroll animate-fade-up'
-          }`}
-        >
+        <Reveal className="text-center mb-12">
           <h2 className="font-extrabold text-3xl md:text-4xl text-[#1F2A54] mb-3">
             Recent Articles & News
           </h2>
           <p className="text-gray-500">
             Stay updated with the latest news and insights from the real estate world.
           </p>
-        </div>
+        </Reveal>
 
         {/* Loading State */}
         {isLoading && (
@@ -94,17 +89,13 @@ export function NewsSection() {
 
         {/* Articles Grid */}
         {!isLoading && articles.length > 0 && (
-          <div 
-            ref={gridRef}
-            className={`grid sm:grid-cols-2 lg:grid-cols-4 gap-6 transition-all duration-700 delay-200 ${
-              gridVisible ? 'animate-on-scroll animate-fade-up animate-visible' : 'animate-on-scroll animate-fade-up'
-            }`}
-          >
-            {articles.map((article, index) => (
-              <article 
-                key={article.id} 
-                className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover-lift transition-all duration-300"
-                style={{ transitionDelay: `${index * 100}ms` }}
+          <Stagger className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {articles.map((article) => (
+              <StaggerItem key={article.id}>
+              <motion.article 
+                className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+                whileHover={{ y: -8, boxShadow: "0 20px 40px rgba(31,42,84,0.12)" }}
+                transition={{ type: "spring", stiffness: 400, damping: 28 }}
               >
                 {/* Image */}
                 <div className="aspect-[4/3] overflow-hidden relative img-hover-zoom">
@@ -138,9 +129,10 @@ export function NewsSection() {
                     Read More <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </div>
-              </article>
+              </motion.article>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         )}
       </div>
     </section>
